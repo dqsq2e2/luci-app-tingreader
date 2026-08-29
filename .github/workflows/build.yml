@@ -83,7 +83,10 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}-${{ matrix.sdk }}
           FEEDNAME: tingreader_ci
-          PACKAGES: tingreader luci-app-tingreader luci-i18n-tingreader-zh-cn
+          # LuCI generates luci-i18n-tingreader-zh-cn while compiling the app.
+          # Listing it here would make gh-action-sdk look for a non-existent
+          # standalone package/luci-i18n-tingreader-zh-cn download target.
+          PACKAGES: tingreader luci-app-tingreader
           NO_REFRESH_CHECK: 1
           NO_SHFMT_CHECK: 1
           MAKEFLAGS: -j$(nproc)
