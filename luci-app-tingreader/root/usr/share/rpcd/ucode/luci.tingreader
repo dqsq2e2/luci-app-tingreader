@@ -1,0 +1,78 @@
+#!/usr/bin/ucode
+
+'use strict';
+
+import { access, glob, readfile } from 'fs';
+import { process_list } from 'luci.sys';
+
+const wrapper = '/usr/bin/ting-reader';
+const binary = '/usr/lib/tingreader/ting-reader';
+
+function process_status() {
+	let result = {
+		exists: !!access(wrapper, 'x') && !!access(binary, 'x'),
+		running: false
+	};
+	let pid = 0;
+
+	for (let path in glob('/proc/[0-9]*/cmdline')) {
+		let cmdline = readfile(path) || '';
+		if (!match(cmdline, /\/usr\/lib\/tingreader\/ting-reader/))
+			continue;
+
+		let fields = match(path, /^\/proc\/([0-9]+)\/cmdline$/);
+		if (fields) {
+			pid = +fields[1];
+			break;
+		}
+	}
+
+	if (!pid)
+		return result;
+
+	result.running = true;
+	result.pid = pid;
+
+	for (let proc in process_list()) {
+		if (+proc.PID != pid)
+			continue;
+
+		result.cpu = proc['%CPU'];
+		result.memory = proc['%MEM'];
+		break;
+	}
+
+	return result;
+}
+
+const methods = {
+	status: {
+		call: function() {
+			return process_status();
+		}
+	},
+
+	info: {
+		call: function() {
+			return {
+				version: trim(readfile('/usr/share/tingreader/version') || '')
+			};
+		}
+	},
+
+	action: {
+		args: { action: 'string' },
+		call: function(request) {
+			switch (request.args.action) {
+			case 'start':
+			case 'restart':
+				let rc = system('/etc/init.d/tingreader ' + request.args.action + ' >/dev/null 2>&1');
+				return { success: rc === 0, code: rc };
+			default:
+				return { success: false, code: 2, message: 'invalid action' };
+			}
+		}
+	}
+};
+
+return { 'luci.tingreader': methods };

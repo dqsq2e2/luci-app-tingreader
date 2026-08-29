@@ -1,0 +1,64 @@
+#!/bin/sh /etc/rc.common
+
+USE_PROCD=1
+START=95
+STOP=10
+
+PROG=/usr/bin/ting-reader
+CONFIG_GENERATOR=/usr/libexec/tingreader-generate-config
+RUNTIME_CONFIG=/var/etc/tingreader.toml
+
+log_error() {
+	logger -t tingreader -p daemon.err "$*"
+}
+
+start_service() {
+	local enabled data_dir
+
+	config_load tingreader
+	config_get_bool enabled main enabled 0
+	[ "$enabled" -eq 1 ] || return 0
+
+	[ -x "$PROG" ] || {
+		log_error "Ting Reader executable is missing: $PROG"
+		return 1
+	}
+
+	config_get data_dir main data_dir '/etc/tingreader'
+	case "$data_dir" in
+		/*) ;;
+		*)
+			log_error "Data directory must be an absolute path: $data_dir"
+			return 1
+			;;
+	esac
+
+	mkdir -p /var/etc "$data_dir" "$data_dir/logs" "$data_dir/plugins" /tmp/tingreader || return 1
+	"$CONFIG_GENERATOR" "$RUNTIME_CONFIG" || {
+		log_error "Unable to generate $RUNTIME_CONFIG"
+		return 1
+	}
+
+	procd_open_instance tingreader
+	procd_set_param command "$PROG" --config "$RUNTIME_CONFIG"
+	procd_set_param env \
+		"HOME=/root" \
+		"STATIC_DIR=/usr/lib/tingreader/static" \
+		"DATA_DIR=$data_dir" \
+		"TMPDIR=/tmp/tingreader"
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_set_param respawn 3600 5 5
+	procd_set_param term_timeout 30
+	procd_set_param file /etc/config/tingreader
+	procd_close_instance
+}
+
+reload_service() {
+	stop
+	start
+}
+
+service_triggers() {
+	procd_add_reload_trigger tingreader
+}

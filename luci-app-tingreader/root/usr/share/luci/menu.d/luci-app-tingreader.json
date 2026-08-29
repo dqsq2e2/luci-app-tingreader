@@ -1,0 +1,14 @@
+{
+	"admin/services/tingreader": {
+		"title": "Ting Reader",
+		"order": 80,
+		"action": {
+			"type": "view",
+			"path": "tingreader"
+		},
+		"depends": {
+			"acl": [ "luci-app-tingreader" ],
+			"fs": { "/etc/config/tingreader": "file" }
+		}
+	}
+}

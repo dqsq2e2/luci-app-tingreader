@@ -1,0 +1,142 @@
+name: Build OpenWrt Ting Reader
+
+on:
+  workflow_dispatch:
+    inputs:
+      tingreader_version:
+        description: Ting Reader version, or latest
+        required: true
+        default: latest
+      release_tag:
+        description: Optional tag used to publish the built packages
+        required: false
+        default: ''
+      release_notes:
+        description: Optional release notes
+        required: false
+        default: ''
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/build.yml'
+      - 'luci-app-tingreader/**'
+      - 'scripts/**'
+      - 'tingreader/**'
+      - 'version.mk'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}-${{ matrix.sdk }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            sdk: 24.10.8
+            format: ipk
+          - arch: aarch64_generic
+            sdk: 24.10.8
+            format: ipk
+          - arch: x86_64
+            sdk: 25.12.5
+            format: apk
+          - arch: aarch64_generic
+            sdk: 25.12.5
+            format: apk
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve Ting Reader release
+        if: github.event_name == 'workflow_dispatch'
+        run: ./scripts/update-version.sh '${{ inputs.tingreader_version }}'
+
+      - name: Read package version
+        id: version
+        shell: bash
+        run: |
+          version="$(awk -F:= '/^TINGREADER_VERSION:=/{print $2}' version.mk)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache OpenWrt SDK
+        uses: actions/cache@v5
+        with:
+          path: |
+            /opt/openwrt-sdk-${{ matrix.arch }}-${{ matrix.sdk }}
+            dl
+          key: tingreader-sdk-${{ matrix.arch }}-${{ matrix.sdk }}-${{ steps.version.outputs.version }}
+
+      - name: Build packages
+        uses: openwrt/gh-action-sdk@main
+        env:
+          ARCH: ${{ matrix.arch }}-${{ matrix.sdk }}
+          FEEDNAME: tingreader_ci
+          PACKAGES: tingreader luci-app-tingreader luci-i18n-tingreader-zh-cn
+          NO_REFRESH_CHECK: 1
+          NO_SHFMT_CHECK: 1
+          MAKEFLAGS: -j$(nproc)
+          V: s
+
+      - name: Prepare artifact
+        shell: bash
+        run: |
+          package_dir="bin/packages/${{ matrix.arch }}/tingreader_ci"
+          output_dir="artifacts/${{ matrix.arch }}-${{ matrix.sdk }}"
+          mkdir -p "$output_dir"
+          find "$package_dir" -maxdepth 1 -type f \
+            \( -name '*.ipk' -o -name '*.apk' \) -exec cp -v {} "$output_dir/" \;
+          cp README.md "$output_dir/README.md"
+          test -n "$(find "$output_dir" -maxdepth 1 -type f -name '*.${{ matrix.format }}' -print -quit)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: TingReader-${{ steps.version.outputs.version }}-${{ matrix.arch }}-${{ matrix.sdk }}
+          path: artifacts/${{ matrix.arch }}-${{ matrix.sdk }}/*
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create per-target archives
+        shell: bash
+        run: |
+          mkdir -p release
+          for dir in artifacts/*; do
+            name="$(basename "$dir")"
+            (cd "$dir" && zip -9 -r "$GITHUB_WORKSPACE/release/$name.zip" .)
+          done
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          body: |
+            Ting Reader OpenWrt packages.
+
+            - `24.10.8` archives contain IPK packages for opkg-based OpenWrt.
+            - `25.12.5` archives contain APK packages for apk-based OpenWrt.
+            - Install `tingreader`, `luci-app-tingreader`, and optionally `luci-i18n-tingreader-zh-cn` from the same archive.
+
+            ${{ inputs.release_notes }}
+          files: release/*.zip

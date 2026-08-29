@@ -1,0 +1,27 @@
+#!/bin/sh
+
+KIND="${1:-system}"
+DATA_DIR="$(uci -q get tingreader.main.data_dir)"
+DATA_DIR="${DATA_DIR:-/etc/tingreader}"
+
+emit_logs() {
+	for suffix in 3 2 1 ''; do
+		file="$DATA_DIR/logs/system.json"
+		[ -z "$suffix" ] || file="$file.$suffix"
+		[ -f "$file" ] && cat "$file"
+	done
+}
+
+case "$KIND" in
+	system)
+		emit_logs | tail -n 4000
+		;;
+	plugin|plugins)
+		emit_logs | grep -Ei '"target":"[^"]*(plugin|scraper)|"message_key":"[^"]*(plugin|scraper)|"threadName":"js-plugin-' | tail -n 4000
+		;;
+	*)
+		exit 2
+		;;
+esac
+
+exit 0

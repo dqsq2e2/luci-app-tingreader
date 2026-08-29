@@ -1,0 +1,65 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+msgid "Add repository"
+msgstr ""
+
+msgid "CPU %s"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+msgid "Installed version: %s"
+msgstr ""
+
+msgid "Listen address"
+msgstr ""
+
+msgid "Listen port"
+msgstr ""
+
+msgid "MEM %s"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Not running"
+msgstr ""
+
+msgid "Open Ting Reader"
+msgstr ""
+
+msgid "Path"
+msgstr ""
+
+msgid "PID %s"
+msgstr ""
+
+msgid "Plugin log"
+msgstr ""
+
+msgid "Repositories"
+msgstr ""
+
+msgid "Restart"
+msgstr ""
+
+msgid "Running"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Start"
+msgstr ""
+
+msgid "System log"
+msgstr ""
+
+msgid "Ting Reader logs"
+msgstr ""
+
+msgid "View logs"
+msgstr ""

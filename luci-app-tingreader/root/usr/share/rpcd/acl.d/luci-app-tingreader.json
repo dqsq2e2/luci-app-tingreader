@@ -1,0 +1,20 @@
+{
+	"luci-app-tingreader": {
+		"description": "Grant access to luci-app-tingreader",
+		"read": {
+			"file": {
+				"/usr/libexec/tingreader-read-log": [ "exec" ]
+			},
+			"ubus": {
+				"luci.tingreader": [ "status", "info" ]
+			},
+			"uci": [ "tingreader" ]
+		},
+		"write": {
+			"ubus": {
+				"luci.tingreader": [ "action" ]
+			},
+			"uci": [ "tingreader" ]
+		}
+	}
+}
