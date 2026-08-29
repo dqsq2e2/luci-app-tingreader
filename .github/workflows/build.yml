@@ -61,7 +61,7 @@ jobs:
 
       - name: Resolve Ting Reader release
         if: github.event_name == 'workflow_dispatch'
-        run: ./scripts/update-version.sh '${{ inputs.tingreader_version }}'
+        run: bash ./scripts/update-version.sh '${{ inputs.tingreader_version }}'
 
       - name: Read package version
         id: version
