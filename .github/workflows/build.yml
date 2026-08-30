@@ -241,11 +241,17 @@ jobs:
           EOF
           )
 
-          gh release create "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "Ting Reader $VERSION" \
-            --notes "$BODY" \
-            release/*.zip
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists, updating notes and assets..."
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "Ting Reader $VERSION" --notes "$BODY"
+            gh release upload "$TAG" release/*.zip --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Ting Reader $VERSION" \
+              --notes "$BODY" \
+              release/*.zip
+          fi
 
       # ── Prune old package releases (keep latest 5 formal releases) ────────
       - name: Prune old package releases
