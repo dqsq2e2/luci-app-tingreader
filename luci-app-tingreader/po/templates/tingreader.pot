@@ -97,13 +97,7 @@ msgstr ""
 msgid "Database and data directory"
 msgstr ""
 
-msgid "Directory used for database, plugins, logs, temporary files, and default storage (All-in-One). Select a detected storage drive or enter a custom path."
-msgstr ""
-
-msgid "Default / System Flash"
-msgstr ""
-
-msgid "System Flash"
+msgid "Directory used for database, plugins, logs, temporary files, and default storage (All-in-One)."
 msgstr ""
 
 msgid "%s (%s total, %s free, %s)"
@@ -112,14 +106,15 @@ msgstr ""
 msgid "%s (%s free)"
 msgstr ""
 
-msgid "Extra Media Repositories"
+msgid "Repositories"
 msgstr ""
 
-msgid "Optional extra audiobook repository directories. Default storage is automatically handled under the data directory above."
+msgid "Audiobook storage library directories."
 msgstr ""
 
 msgid "e.g. Audiobooks"
 msgstr ""
+
 
 msgid "Log level"
 msgstr ""

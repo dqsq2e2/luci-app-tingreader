@@ -237,7 +237,9 @@ function renderStatusSection() {
 }
 
 function validateRepositoryPath(sectionId, value) {
-	if (!value || value.charAt(0) !== '/')
+	if (value == null || value === '')
+		return true;
+	if (value.charAt(0) !== '/')
 		return _('The repository path must be absolute.');
 	if (/(^|\/)\.\.(\/|$)/.test(value))
 		return _('The repository path must not contain parent-directory components.');
@@ -311,24 +313,20 @@ return view.extend({
 		o.datatype = 'port';
 		o.rmempty = false;
 
-		o = s.option(form.Value, 'data_dir', _('Database and data directory'),
-			_('Directory used for database, plugins, logs, temporary files, and default storage (All-in-One). Select a detected storage drive or enter a custom path.'));
+		o = s.option(form.ListValue, 'data_dir', _('Database and data directory'),
+			_('Directory used for database, plugins, logs, temporary files, and default storage (All-in-One).'));
 		o.default = defaultDataDir;
-		o.placeholder = defaultDataDir;
-		o.validate = validateRepositoryPath;
 		o.rmempty = false;
 
-		if (!mounts.length)
-			o.value('/etc/tingreader', '/etc/tingreader (' + _('Default / System Flash') + ')');
-
-		mounts.forEach(function(mount) {
-			var path = mount.path.replace(/\/$/, '') + '/tingreader';
-			var label = _('%s (%s total, %s free, %s)').format(path, formatBytes(mount.total), formatBytes(mount.free), mount.type || 'unknown');
-			o.value(path, label);
-		});
-
-		if (mounts.length)
-			o.value('/etc/tingreader', '/etc/tingreader (' + _('System Flash') + ')');
+		if (!mounts.length) {
+			o.value('/etc/tingreader', '/etc/tingreader');
+		} else {
+			mounts.forEach(function(mount) {
+				var path = mount.path.replace(/\/$/, '') + '/tingreader';
+				var label = _('%s (%s total, %s free, %s)').format(path, formatBytes(mount.total), formatBytes(mount.free), mount.type || 'unknown');
+				o.value(path, label);
+			});
+		}
 
 		o = s.option(form.ListValue, 'log_level', _('Log level'));
 		o.default = 'info';
@@ -337,8 +335,8 @@ return view.extend({
 		o.value('warn', _('Warning'));
 		o.value('error', _('Error'));
 
-		s = m.section(form.GridSection, 'repository', _('Extra Media Repositories'),
-			_('Optional extra audiobook repository directories. Default storage is automatically handled under the data directory above.'));
+		s = m.section(form.GridSection, 'repository', _('Repositories'),
+			_('Audiobook storage library directories.'));
 		s.addremove = true;
 		s.anonymous = true;
 		s.sortable = true;
@@ -355,7 +353,6 @@ return view.extend({
 		o.editable = true;
 
 		o = s.option(form.Value, 'path', _('Path'));
-		o.placeholder = _('Path');
 		o.validate = validateRepositoryPath;
 		o.editable = true;
 
