@@ -314,7 +314,7 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.ListValue, 'data_dir', _('Database and data directory'),
-			_('Directory used for database, plugins, logs, temporary files, and default storage (All-in-One).'));
+			_('Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data.'));
 		o.default = defaultDataDir;
 		o.rmempty = false;
 
@@ -336,7 +336,7 @@ return view.extend({
 		o.value('error', _('Error'));
 
 		s = m.section(form.GridSection, 'repository', _('Repositories'),
-			_('Audiobook storage library directories.'));
+			_('Audiobook storage library directories. Leave path empty to use the default storage under the data directory.'));
 		s.addremove = true;
 		s.anonymous = true;
 		s.sortable = true;
@@ -353,14 +353,8 @@ return view.extend({
 		o.editable = true;
 
 		o = s.option(form.Value, 'path', _('Path'));
-		o.validate = validateRepositoryPath;
+		o.placeholder = defaultDataDir + '/storage';
 		o.editable = true;
-
-		mounts.forEach(function(mount) {
-			var path = mount.path.replace(/\/$/, '') + '/audiobooks';
-			var label = _('%s (%s free)').format(path, formatBytes(mount.free));
-			o.value(path, label);
-		});
 
 		return m.render();
 	}

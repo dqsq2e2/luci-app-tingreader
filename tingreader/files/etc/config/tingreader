@@ -5,3 +5,9 @@ config tingreader 'main'
 	option data_dir ''
 	option log_level 'info'
 
+config repository
+	option enabled '1'
+	option name 'Default'
+	option path ''
+
+

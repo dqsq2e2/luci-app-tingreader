@@ -97,7 +97,7 @@ msgstr ""
 msgid "Database and data directory"
 msgstr ""
 
-msgid "Directory used for database, plugins, logs, temporary files, and default storage (All-in-One)."
+msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data."
 msgstr ""
 
 msgid "%s (%s total, %s free, %s)"
@@ -109,7 +109,7 @@ msgstr ""
 msgid "Repositories"
 msgstr ""
 
-msgid "Audiobook storage library directories."
+msgid "Audiobook storage library directories. Leave path empty to use the default storage under the data directory."
 msgstr ""
 
 msgid "e.g. Audiobooks"

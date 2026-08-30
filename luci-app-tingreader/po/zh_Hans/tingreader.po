@@ -100,8 +100,8 @@ msgstr "LuCI 插件"
 msgid "Database and data directory"
 msgstr "数据库与数据保存目录"
 
-msgid "Directory used for database, plugins, logs, temporary files, and default storage (All-in-One)."
-msgstr "用于存放数据库、插件、日志、临时文件及默认有声书文件的统一主目录（All-in-One）。"
+msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data."
+msgstr "修改此路径会创建一个全新实例；如需保留数据，请先停止Ting Reader，再移动现有数据。"
 
 msgid "%s (%s total, %s free, %s)"
 msgstr "%s (总共 %s, 剩余 %s, %s)"
@@ -112,8 +112,8 @@ msgstr "%s (剩余 %s)"
 msgid "Repositories"
 msgstr "存储库"
 
-msgid "Audiobook storage library directories."
-msgstr "有声书媒体存储目录。"
+msgid "Audiobook storage library directories. Leave path empty to use the default storage under the data directory."
+msgstr "有声书媒体存储目录。路径留空则自动使用数据目录下的默认存储。"
 
 msgid "e.g. Audiobooks"
 msgstr "例如：有声书"
