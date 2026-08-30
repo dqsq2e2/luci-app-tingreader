@@ -118,7 +118,7 @@ jobs:
       - name: Install system build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake clang libssl-dev build-essential
+          sudo apt-get install -y cmake clang libssl-dev pkg-config build-essential
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -137,12 +137,15 @@ jobs:
         working-directory: backend
         run: |
           if ! grep -q '^openssl' Cargo.toml; then
-            sed -i '/^\[dependencies\]/a openssl = { version = "0.10", features = ["vendored"] }' Cargo.toml
+            sed -i '/^\[dependencies\]/a openssl = { version = "0.10", features = ["vendored"] }\nopenssl-sys = { version = "0.9", features = ["vendored"] }' Cargo.toml
             echo "Injected vendored OpenSSL."
           fi
 
       - name: Build backend natively
         working-directory: backend
+        env:
+          OPENSSL_STATIC: "1"
+          OPENSSL_VENDORED: "1"
         run: cargo build --release
 
       - name: Create archive
@@ -238,10 +241,11 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main || true
           git add version.mk
           git diff --cached --quiet && { echo "version.mk unchanged"; exit 0; }
           git commit -m "chore: bump ting-reader to v${VERSION} [skip ci]"
-          git push
+          git push origin main
 
       # ── Publish backend release ─────────────────────────────────────────
       - name: Publish backend release
