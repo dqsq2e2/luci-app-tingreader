@@ -59,14 +59,12 @@ jobs:
           - { arch: x86_64,            sdk: 24.10.8, format: ipk }
           - { arch: aarch64_generic,   sdk: 24.10.8, format: ipk }
           - { arch: aarch64_cortex-a53, sdk: 24.10.8, format: ipk }
-          - { arch: aarch64_cortex-a55, sdk: 24.10.8, format: ipk }
           - { arch: aarch64_cortex-a72, sdk: 24.10.8, format: ipk }
           - { arch: aarch64_cortex-a76, sdk: 24.10.8, format: ipk }
           # ── OpenWrt 25.12.x – APK (apk-tools) ─────────────────────────────
           - { arch: x86_64,            sdk: 25.12.5, format: apk }
           - { arch: aarch64_generic,   sdk: 25.12.5, format: apk }
           - { arch: aarch64_cortex-a53, sdk: 25.12.5, format: apk }
-          - { arch: aarch64_cortex-a55, sdk: 25.12.5, format: apk }
           - { arch: aarch64_cortex-a72, sdk: 25.12.5, format: apk }
           - { arch: aarch64_cortex-a76, sdk: 25.12.5, format: apk }
 
@@ -203,7 +201,7 @@ jobs:
             mkdir -p "$arm64_dir"
             cp README.md "$arm64_dir/README.md"
 
-            for arch in aarch64_generic aarch64_cortex-a53 aarch64_cortex-a55 \
+            for arch in aarch64_generic aarch64_cortex-a53 \
                         aarch64_cortex-a72 aarch64_cortex-a76; do
               src="artifacts/TingReader-${VERSION}-${arch}-${sdk}"
               test -d "$src"
@@ -234,12 +232,12 @@ jobs:
 
             | Archive | SDK | Format | Architectures |
             |---------|-----|--------|---------------|
-            | `TingReader-${{ steps.version.outputs.version }}-arm64-24.10.8.zip` | 24.10.8 | IPK (opkg) | generic / a53 / a55 / a72 / a76 |
-            | `TingReader-${{ steps.version.outputs.version }}-arm64-25.12.5.zip` | 25.12.5 | APK | generic / a53 / a55 / a72 / a76 |
+            | `TingReader-${{ steps.version.outputs.version }}-arm64-24.10.8.zip` | 24.10.8 | IPK (opkg) | generic / a53 / a72 / a76 |
+            | `TingReader-${{ steps.version.outputs.version }}-arm64-25.12.5.zip` | 25.12.5 | APK | generic / a53 / a72 / a76 |
             | `TingReader-${{ steps.version.outputs.version }}-x86_64-24.10.8.zip` | 24.10.8 | IPK (opkg) | x86_64 |
             | `TingReader-${{ steps.version.outputs.version }}-x86_64-25.12.5.zip` | 25.12.5 | APK | x86_64 |
 
-            ARM64 archives contain `aarch64_generic`, `aarch64_cortex-a53`, `aarch64_cortex-a55`, `aarch64_cortex-a72`, and `aarch64_cortex-a76` subdirectories.
+            ARM64 archives contain `aarch64_generic`, `aarch64_cortex-a53`, `aarch64_cortex-a72`, and `aarch64_cortex-a76` subdirectories.
             Use the one matching `apk --print-arch` or `opkg print-architecture`.
 
             Install `tingreader`, `luci-app-tingreader`, and optionally `luci-i18n-tingreader-zh-cn` from the same archive.

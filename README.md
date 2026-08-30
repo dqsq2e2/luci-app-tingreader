@@ -13,7 +13,7 @@ Ting Reader 的 OpenWrt 软件包项目，包含服务端核心包、现代 LuCI
 
 ## 支持范围
 
-- CPU：`x86_64`、`aarch64`；ARM64 合集覆盖 `aarch64_generic`、`aarch64_cortex-a53`、`aarch64_cortex-a55`、`aarch64_cortex-a72` 和 `aarch64_cortex-a76`。
+- CPU：`x86_64`、`aarch64`；ARM64 合集覆盖 `aarch64_generic`、`aarch64_cortex-a53`、`aarch64_cortex-a72` 和 `aarch64_cortex-a76`。
 - LuCI：使用 JS/ucode 的现代 LuCI，建议 OpenWrt 24.10 或更新版本。
 - 软件包格式：OpenWrt 24.10.8 SDK 构建 IPK，OpenWrt 25.12.5 SDK 构建 APK。
 
@@ -29,7 +29,7 @@ Ting Reader 的 OpenWrt 软件包项目，包含服务端核心包、现代 LuCI
 
 手动安装时请使用同一架构和同一包管理器生成的文件：
 
-ARM64 核心程序使用相同的通用 AArch64 二进制，但 OpenWrt 包管理器仍要求包内架构标签与固件一致。发布页只需下载一个 ARM64 ZIP，解压后通过 `apk --print-arch` 或 `opkg print-architecture` 确认应进入 `aarch64_generic`、`aarch64_cortex-a53`、`aarch64_cortex-a55`、`aarch64_cortex-a72` 还是 `aarch64_cortex-a76` 子目录，不要交叉安装。
+ARM64 核心程序使用相同的通用 AArch64 二进制，但 OpenWrt 包管理器仍要求包内架构标签与固件一致。发布页只需下载一个 ARM64 ZIP，解压后通过 `apk --print-arch` 或 `opkg print-architecture` 确认应进入 `aarch64_generic`、`aarch64_cortex-a53`、`aarch64_cortex-a72` 还是 `aarch64_cortex-a76` 子目录，不要交叉安装。
 
 ```sh
 # opkg / IPK
