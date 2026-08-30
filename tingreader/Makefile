@@ -21,7 +21,7 @@ FRONTEND_FILE:=ting-reader-frontend-$(PKG_VERSION).tar.gz
 GLIBC_VERSION:=2.39-0ubuntu8
 LIBGCC_VERSION:=14-20240412-0ubuntu1
 
-ifeq ($(ARCH),x86_64)
+ifneq ($(filter x86_64%,$(ARCH)),)
   APP_ARCH:=amd64
   DEB_ARCH:=amd64
   DEB_TRIPLET:=x86_64-linux-gnu
@@ -33,7 +33,7 @@ ifeq ($(ARCH),x86_64)
   LIBGCC_URL:=http://archive.ubuntu.com/ubuntu/pool/main/g/gcc-14
 endif
 
-ifeq ($(ARCH),aarch64)
+ifneq ($(filter aarch64% arm64%,$(ARCH)),)
   APP_ARCH:=arm64
   DEB_ARCH:=arm64
   DEB_TRIPLET:=aarch64-linux-gnu
@@ -83,7 +83,7 @@ define Package/tingreader
   CATEGORY:=Multimedia
   TITLE:=Ting Reader audiobook server
   URL:=https://github.com/dqsq2e2/ting-reader
-  DEPENDS:=@(x86_64||aarch64) +ca-bundle
+  DEPENDS:=@(x86_64||aarch64||aarch64_generic||aarch64_cortex-a53||aarch64_cortex-a72||aarch64_cortex-a76) +ca-bundle
   PKG_FLAGS:=nonshared
 endef
 
