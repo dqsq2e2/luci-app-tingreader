@@ -8,7 +8,7 @@
 		},
 		"depends": {
 			"acl": [ "luci-app-tingreader" ],
-			"fs": { "/etc/config/tingreader": "file" }
+			"uci": { "tingreader": true }
 		}
 	}
 }
