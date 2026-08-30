@@ -238,7 +238,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add version.mk
           git diff --cached --quiet && { echo "version.mk unchanged"; exit 0; }
-          git commit -m "chore: bump ting-reader to v${VERSION}"
+          git commit -m "chore: bump ting-reader to v${VERSION} [skip ci]"
           git push
 
       # ── Publish backend release ─────────────────────────────────────────
