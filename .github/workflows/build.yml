@@ -1,20 +1,32 @@
 name: Build OpenWrt Ting Reader
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Trigger sources:
+#  1. repository_dispatch "backend-published" – fired automatically by
+#     build-backend.yml after it publishes static binaries and updates version.mk.
+#  2. workflow_dispatch    – manual run, optionally resolves a new upstream version.
+#  3. push to main        – on changes to package files (for CI validation).
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
+  repository_dispatch:
+    types: [backend-published]
+
   workflow_dispatch:
     inputs:
       tingreader_version:
-        description: Ting Reader version, or latest
+        description: 'ting-reader version to package (e.g. 1.6.0 or "latest")'
         required: true
         default: latest
       release_tag:
-        description: Optional tag used to publish the built packages
+        description: 'Optional tag to publish the OpenWrt packages as a GitHub Release'
         required: false
         default: ''
       release_notes:
-        description: Optional release notes
+        description: 'Optional release notes appended to the published release'
         required: false
         default: ''
+
   push:
     branches:
       - main
@@ -43,29 +55,33 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - arch: x86_64
-            sdk: 24.10.8
-            format: ipk
-          - arch: aarch64_generic
-            sdk: 24.10.8
-            format: ipk
-          - arch: aarch64_cortex-a53
-            sdk: 24.10.8
-            format: ipk
-          - arch: x86_64
-            sdk: 25.12.5
-            format: apk
-          - arch: aarch64_generic
-            sdk: 25.12.5
-            format: apk
-          - arch: aarch64_cortex-a53
-            sdk: 25.12.5
-            format: apk
+          # ── OpenWrt 24.10.x – IPK (opkg) ──────────────────────────────────
+          - { arch: x86_64,            sdk: 24.10.8, format: ipk }
+          - { arch: aarch64_generic,   sdk: 24.10.8, format: ipk }
+          - { arch: aarch64_cortex-a53, sdk: 24.10.8, format: ipk }
+          - { arch: aarch64_cortex-a55, sdk: 24.10.8, format: ipk }
+          - { arch: aarch64_cortex-a72, sdk: 24.10.8, format: ipk }
+          - { arch: aarch64_cortex-a76, sdk: 24.10.8, format: ipk }
+          # ── OpenWrt 25.12.x – APK (apk-tools) ─────────────────────────────
+          - { arch: x86_64,            sdk: 25.12.5, format: apk }
+          - { arch: aarch64_generic,   sdk: 25.12.5, format: apk }
+          - { arch: aarch64_cortex-a53, sdk: 25.12.5, format: apk }
+          - { arch: aarch64_cortex-a55, sdk: 25.12.5, format: apk }
+          - { arch: aarch64_cortex-a72, sdk: 25.12.5, format: apk }
+          - { arch: aarch64_cortex-a76, sdk: 25.12.5, format: apk }
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Resolve Ting Reader release
+      # When triggered by backend-published, version.mk was already committed
+      # by build-backend.yml. Pull the latest commit to get it.
+      - name: Pull latest version.mk (if triggered by backend-published)
+        if: github.event_name == 'repository_dispatch'
+        run: git pull --ff-only
+
+      # When triggered manually with a version, update version.mk first.
+      - name: Resolve ting-reader release
         if: github.event_name == 'workflow_dispatch'
         run: bash ./scripts/update-version.sh '${{ inputs.tingreader_version }}'
 
@@ -73,32 +89,46 @@ jobs:
         id: version
         shell: bash
         run: |
-          version="$(awk -F:= '/^TINGREADER_VERSION:=/{print $2}' version.mk)"
+          version="$(awk -F':=' '/^TINGREADER_VERSION:=/{print $2}' version.mk)"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building ting-reader $version for ${{ matrix.arch }}-${{ matrix.sdk }}"
 
+      # ── Cache OpenWrt SDK and downloaded source archives ──────────────────
+      # Key includes the version so the dl/ directory (which holds backend and
+      # frontend tarballs) is invalidated when the version changes.
       - name: Cache OpenWrt SDK
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
             /opt/openwrt-sdk-${{ matrix.arch }}-${{ matrix.sdk }}
-            dl
-          key: tingreader-sdk-${{ matrix.arch }}-${{ matrix.sdk }}-${{ steps.version.outputs.version }}
+          key: openwrt-sdk-${{ matrix.arch }}-${{ matrix.sdk }}
+          restore-keys: |
+            openwrt-sdk-${{ matrix.arch }}-${{ matrix.sdk }}
 
+      - name: Cache downloaded packages (dl/)
+        uses: actions/cache@v4
+        with:
+          path: dl
+          key: tingreader-dl-${{ matrix.arch }}-${{ steps.version.outputs.version }}
+          restore-keys: |
+            tingreader-dl-${{ matrix.arch }}-
+
+      # ── Build ─────────────────────────────────────────────────────────────
       - name: Build packages
         uses: openwrt/gh-action-sdk@main
         env:
-          ARCH: ${{ matrix.arch }}-${{ matrix.sdk }}
-          FEEDNAME: tingreader_ci
-          # LuCI generates luci-i18n-tingreader-zh-cn while compiling the app.
-          # Listing it here would make gh-action-sdk look for a non-existent
-          # standalone package/luci-i18n-tingreader-zh-cn download target.
-          PACKAGES: tingreader luci-app-tingreader
+          ARCH:             ${{ matrix.arch }}-${{ matrix.sdk }}
+          FEEDNAME:         tingreader_ci
+          # luci-i18n-tingreader-zh-cn is generated as a side-effect of building
+          # luci-app-tingreader and does not have its own download target.
+          PACKAGES:         tingreader luci-app-tingreader
           NO_REFRESH_CHECK: 1
-          NO_SHFMT_CHECK: 1
-          MAKEFLAGS: -j$(nproc)
-          V: s
+          NO_SHFMT_CHECK:   1
+          MAKEFLAGS:        -j$(nproc)
+          V:                s
 
-      - name: Prepare artifact
+      # ── Collect artifacts ─────────────────────────────────────────────────
+      - name: Prepare artifact directory
         shell: bash
         run: |
           package_dir="bin/packages/${{ matrix.arch }}/tingreader_ci"
@@ -107,46 +137,136 @@ jobs:
           find "$package_dir" -maxdepth 1 -type f \
             \( -name '*.ipk' -o -name '*.apk' \) -exec cp -v {} "$output_dir/" \;
           cp README.md "$output_dir/README.md"
-          test -n "$(find "$output_dir" -maxdepth 1 -type f -name '*.${{ matrix.format }}' -print -quit)"
+          # Fail loudly if no packages were produced.
+          test -n "$(find "$output_dir" -maxdepth 1 -type f \
+            -name "*.${{ matrix.format }}" -print -quit)"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
           name: TingReader-${{ steps.version.outputs.version }}-${{ matrix.arch }}-${{ matrix.sdk }}
           path: artifacts/${{ matrix.arch }}-${{ matrix.sdk }}/*
           if-no-files-found: error
+          retention-days: 3
 
+  # ── Publish GitHub Release ────────────────────────────────────────────────
   release:
     name: Publish release
     needs: build
-    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
     runs-on: ubuntu-latest
+    # Publish when:
+    #  - manually triggered with a non-empty release_tag, OR
+    #  - automatically triggered by backend-published (uses the version as tag)
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.release_tag != '') ||
+      github.event_name == 'repository_dispatch'
 
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Checkout (for README)
+        uses: actions/checkout@v4
+
+      - name: Pull latest version.mk
+        if: github.event_name == 'repository_dispatch'
+        run: git pull --ff-only
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          version="$(awk -F':=' '/^TINGREADER_VERSION:=/{print $2}' version.mk)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Determine release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "tag=v${{ steps.version.outputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Create per-target archives
+      - name: Assemble release archives
         shell: bash
         run: |
           mkdir -p release
-          for dir in artifacts/*; do
-            name="$(basename "$dir")"
-            (cd "$dir" && zip -9 -r "$GITHUB_WORKSPACE/release/$name.zip" .)
+          VERSION="${{ steps.version.outputs.version }}"
+
+          for sdk in 24.10.8 25.12.5; do
+            # ── ARM64: combine all cortex sub-targets into one zip ───────────
+            arm64_dir="$RUNNER_TEMP/TingReader-${VERSION}-arm64-${sdk}"
+            mkdir -p "$arm64_dir"
+            cp README.md "$arm64_dir/README.md"
+
+            for arch in aarch64_generic aarch64_cortex-a53 aarch64_cortex-a55 \
+                        aarch64_cortex-a72 aarch64_cortex-a76; do
+              src="artifacts/TingReader-${VERSION}-${arch}-${sdk}"
+              test -d "$src"
+              mkdir -p "$arm64_dir/$arch"
+              find "$src" -maxdepth 1 -type f ! -name 'README.md' \
+                -exec cp -v {} "$arm64_dir/$arch/" \;
+            done
+
+            (cd "$arm64_dir" && zip -9 -r \
+              "$GITHUB_WORKSPACE/release/TingReader-${VERSION}-arm64-${sdk}.zip" .)
+
+            # ── x86_64 ───────────────────────────────────────────────────────
+            x86_src="artifacts/TingReader-${VERSION}-x86_64-${sdk}"
+            test -d "$x86_src"
+            (cd "$x86_src" && zip -9 -r \
+              "$GITHUB_WORKSPACE/release/TingReader-${VERSION}-x86_64-${sdk}.zip" .)
           done
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag }}
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Ting Reader ${{ steps.version.outputs.version }}
           body: |
-            Ting Reader OpenWrt packages.
+            Ting Reader OpenWrt packages for version **${{ steps.version.outputs.version }}**.
 
-            - `24.10.8` archives contain IPK packages for opkg-based OpenWrt.
-            - `25.12.5` archives contain APK packages for apk-based OpenWrt.
-            - ARM64 core binaries are identical, but package architecture labels must match the firmware (`aarch64_generic` or `aarch64_cortex-a53`).
-            - Install `tingreader`, `luci-app-tingreader`, and optionally `luci-i18n-tingreader-zh-cn` from the same archive.
+            Backend binaries are compiled from source and statically linked — no private glibc required.
+
+            | Archive | SDK | Format | Architectures |
+            |---------|-----|--------|---------------|
+            | `TingReader-${{ steps.version.outputs.version }}-arm64-24.10.8.zip` | 24.10.8 | IPK (opkg) | generic / a53 / a55 / a72 / a76 |
+            | `TingReader-${{ steps.version.outputs.version }}-arm64-25.12.5.zip` | 25.12.5 | APK | generic / a53 / a55 / a72 / a76 |
+            | `TingReader-${{ steps.version.outputs.version }}-x86_64-24.10.8.zip` | 24.10.8 | IPK (opkg) | x86_64 |
+            | `TingReader-${{ steps.version.outputs.version }}-x86_64-25.12.5.zip` | 25.12.5 | APK | x86_64 |
+
+            ARM64 archives contain `aarch64_generic`, `aarch64_cortex-a53`, `aarch64_cortex-a55`, `aarch64_cortex-a72`, and `aarch64_cortex-a76` subdirectories.
+            Use the one matching `apk --print-arch` or `opkg print-architecture`.
+
+            Install `tingreader`, `luci-app-tingreader`, and optionally `luci-i18n-tingreader-zh-cn` from the same archive.
 
             ${{ inputs.release_notes }}
           files: release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Prune old package releases (keep latest 5 formal releases) ────────
+      - name: Prune old package releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEEP_COUNT: 5
+        run: |
+          echo "Pruning older package releases (keeping latest $KEEP_COUNT)..."
+          count=0
+          while IFS= read -r tag; do
+            [[ -n "$tag" ]] || continue
+            # Only match formal releases (v*), skip backend-v* tags
+            [[ "$tag" =~ ^v[0-9] ]] || continue
+            count=$((count + 1))
+            if (( count > KEEP_COUNT )); then
+              echo "Deleting old release: $tag"
+              gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes 2>/dev/null || true
+            fi
+          done < <(
+            gh release list --repo "$GITHUB_REPOSITORY" --limit 100 \
+              --json tagName --jq '.[].tagName'
+          )

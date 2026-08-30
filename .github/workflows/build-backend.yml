@@ -1,0 +1,317 @@
+name: Build ting-reader Backend
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Polls the upstream ting-reader repository for new release tags.
+# When a new version is detected (compared to version.mk), it:
+#  1. Checks out the ting-reader source at that tag.
+#  2. Compiles statically-linked binaries for amd64 and arm64.
+#  3. Fetches the frontend archive hash from upstream.
+#  4. Commits updated version.mk back to THIS repository.
+#  5. Publishes the static binaries as a GitHub Release.
+#  6. Prunes old backend-v* releases (keeps only latest).
+#  7. Triggers the OpenWrt package build workflow (build.yml).
+#
+# Called by Daily-Maintenance.yml on schedule, or run manually.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      ting_reader_tag:
+        description: 'Tag to build (e.g. v1.6.0).  Blank = auto-detect latest.'
+        required: false
+        default: ''
+      force:
+        description: 'Force rebuild even if version.mk is already up to date.'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-backend
+  cancel-in-progress: true
+
+env:
+  TZ: Asia/Shanghai
+  TING_READER_REPO: dqsq2e2/ting-reader
+
+jobs:
+  # ── 1. Detect new upstream release ────────────────────────────────────────
+  check:
+    name: Check upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version:    ${{ steps.detect.outputs.version }}
+      tag:        ${{ steps.detect.outputs.tag }}
+      need_build: ${{ steps.detect.outputs.need_build }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect upstream version
+        id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          CURRENT="$(awk -F':=' '/^TINGREADER_VERSION:=/{print $2}' version.mk || echo none)"
+          echo "Current: $CURRENT"
+
+          if [ -n "${{ inputs.ting_reader_tag }}" ]; then
+            TAG="${{ inputs.ting_reader_tag }}"
+          else
+            TAG="$(curl -fsSIL -o /dev/null -w '%{url_effective}' \
+              "https://github.com/${{ env.TING_READER_REPO }}/releases/latest")"
+            TAG="${TAG##*/}"
+          fi
+          VERSION="${TAG#v}"
+          echo "Upstream: $TAG (version=$VERSION)"
+
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "Force rebuild requested."
+            echo "need_build=true" >> "$GITHUB_OUTPUT"
+          elif [ "$VERSION" != "$CURRENT" ]; then
+            echo "New version detected."
+            echo "need_build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Already up to date."
+            echo "need_build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── 2. Build static backend binaries ──────────────────────────────────────
+  build:
+    name: Build (${{ matrix.arch_label }})
+    needs: check
+    if: needs.check.outputs.need_build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target:     x86_64-unknown-linux-musl
+            arch_label: amd64
+          - target:     aarch64-unknown-linux-musl
+            arch_label: arm64
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      TAG:     ${{ needs.check.outputs.tag }}
+    steps:
+      - name: Checkout ting-reader @ ${{ env.TAG }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TING_READER_REPO }}
+          ref: ${{ env.TAG }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key:          rust-${{ matrix.target }}-${{ hashFiles('backend/Cargo.lock') }}
+          restore-keys: rust-${{ matrix.target }}-
+
+      - name: Install cross
+        run: cargo install cross --locked
+
+      - name: Inject vendored OpenSSL
+        working-directory: backend
+        run: |
+          if ! grep -q '^openssl' Cargo.toml; then
+            sed -i '/^\[dependencies\]/a openssl = { version = "0.10", features = ["vendored"] }' Cargo.toml
+            echo "Injected vendored OpenSSL."
+          fi
+
+      # ── Primary: musl (fully static) ────────────────────────────────────
+      - name: Build with cross (musl)
+        id: musl
+        working-directory: backend
+        continue-on-error: true
+        run: |
+          cross build --release --target ${{ matrix.target }}
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+      # ── Fallback: glibc ≥ 2.17 via cargo-zigbuild ──────────────────────
+      - name: Install cargo-zigbuild (fallback)
+        if: steps.musl.outputs.ok != 'true'
+        run: |
+          pip3 install ziglang --quiet
+          cargo install cargo-zigbuild --locked
+
+      - name: Determine GNU target
+        if: steps.musl.outputs.ok != 'true'
+        run: |
+          case "${{ matrix.target }}" in
+            x86_64-unknown-linux-musl)   GNU=x86_64-unknown-linux-gnu   ;;
+            aarch64-unknown-linux-musl)  GNU=aarch64-unknown-linux-gnu  ;;
+          esac
+          echo "GNU_TARGET=$GNU" >> "$GITHUB_ENV"
+          rustup target add "$GNU"
+
+      - name: Build with cargo-zigbuild (glibc 2.17)
+        if: steps.musl.outputs.ok != 'true'
+        working-directory: backend
+        env:
+          RUSTFLAGS: '-C target-feature=+crt-static'
+        run: cargo zigbuild --release --target "${GNU_TARGET}.2.17"
+
+      # ── Package ─────────────────────────────────────────────────────────
+      - name: Create archive
+        id: pkg
+        working-directory: backend
+        run: |
+          BINARY=$(find target -type f \
+            \( -name 'ting_reader' -o -name 'ting-reader' \) \
+            | grep '/release/ting[-_]reader$' | head -n1)
+          [ -n "$BINARY" ] || { echo "::error::Binary not found"; exit 1; }
+          file "$BINARY"
+
+          mkdir -p _pkg
+          cp "$BINARY"   _pkg/ting-reader
+          cp config.toml _pkg/config.toml
+
+          ARCHIVE="ting-reader-backend-linux-${{ matrix.arch_label }}-${VERSION}.tar.gz"
+          tar -czf "$GITHUB_WORKSPACE/$ARCHIVE" -C _pkg .
+
+          SHA256="$(sha256sum "$GITHUB_WORKSPACE/$ARCHIVE" | awk '{print $1}')"
+          echo "archive=$ARCHIVE"                >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256"                  >> "$GITHUB_OUTPUT"
+          echo "path=$GITHUB_WORKSPACE/$ARCHIVE" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ matrix.arch_label }}
+          path: ${{ steps.pkg.outputs.path }}
+          if-no-files-found: error
+          retention-days: 3
+
+  # ── 3. Publish, update version.mk, prune old releases ────────────────────
+  publish:
+    name: Publish & update version.mk
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      TAG:     ${{ needs.check.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download backend artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Compute backend hashes
+        id: hashes
+        run: |
+          AMD64_HASH="$(sha256sum "dist/ting-reader-backend-linux-amd64-${VERSION}.tar.gz" | awk '{print $1}')"
+          ARM64_HASH="$(sha256sum "dist/ting-reader-backend-linux-arm64-${VERSION}.tar.gz" | awk '{print $1}')"
+          echo "amd64=$AMD64_HASH" >> "$GITHUB_OUTPUT"
+          echo "arm64=$ARM64_HASH" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch frontend hash
+        id: frontend
+        run: |
+          URL="https://github.com/${{ env.TING_READER_REPO }}/releases/download/${TAG}/ting-reader-frontend-${VERSION}.tar.gz"
+          TMP="$(mktemp).tar.gz"
+          curl -fL --retry 3 "$URL" -o "$TMP"
+          tar -tzf "$TMP" > /dev/null
+          echo "hash=$(sha256sum "$TMP" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      # ── Update version.mk ──────────────────────────────────────────────
+      - name: Update version.mk
+        run: |
+          cat > version.mk <<EOF
+          # Auto-updated by build-backend.yml – do not edit manually.
+          TINGREADER_VERSION:=${VERSION}
+          TINGREADER_BACKEND_AMD64_HASH:=${{ steps.hashes.outputs.amd64 }}
+          TINGREADER_BACKEND_ARM64_HASH:=${{ steps.hashes.outputs.arm64 }}
+          TINGREADER_FRONTEND_HASH:=${{ steps.frontend.outputs.hash }}
+          EOF
+          sed -i 's/^[[:space:]]*//' version.mk
+
+      - name: Commit & push version.mk
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.mk
+          git diff --cached --quiet && { echo "version.mk unchanged"; exit 0; }
+          git commit -m "chore: bump ting-reader to v${VERSION}"
+          git push
+
+      # ── Publish backend release ─────────────────────────────────────────
+      - name: Publish backend release
+        env:
+          RELEASE_TAG: backend-v${{ env.VERSION }}
+        run: |
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          cat > "$notes_file" <<NOTES
+          Statically-linked ting-reader backend binaries built from upstream tag **${TAG}**.
+
+          | Archive | SHA-256 |
+          |---------|---------|
+          | \`ting-reader-backend-linux-amd64-${VERSION}.tar.gz\` | \`${{ steps.hashes.outputs.amd64 }}\` |
+          | \`ting-reader-backend-linux-arm64-${VERSION}.tar.gz\` | \`${{ steps.hashes.outputs.arm64 }}\` |
+          NOTES
+
+          assets=(dist/ting-reader-backend-linux-*.tar.gz)
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Backend v${VERSION}" \
+              --notes-file "$notes_file"
+          else
+            gh release create "$RELEASE_TAG" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Backend v${VERSION}" \
+              --notes-file "$notes_file"
+          fi
+
+      # ── Prune old backend releases (keep only latest) ───────────────────
+      - name: Prune old backend releases
+        env:
+          RELEASE_TAG: backend-v${{ env.VERSION }}
+        run: |
+          echo "Keeping $RELEASE_TAG, pruning other backend-v* releases..."
+          while IFS= read -r tag; do
+            [[ -n "$tag" && "$tag" != "$RELEASE_TAG" ]] || continue
+            [[ "$tag" == backend-v* ]] || continue
+            echo "Deleting release+tag: $tag"
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" \
+              --cleanup-tag --yes 2>/dev/null || true
+          done < <(
+            gh release list --repo "$GITHUB_REPOSITORY" --limit 100 \
+              --json tagName --jq '.[].tagName'
+          )
+
+      # ── Trigger OpenWrt package build ───────────────────────────────────
+      - name: Trigger OpenWrt package build
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: backend-published
+          client-payload: '{"version": "${{ env.VERSION }}"}'

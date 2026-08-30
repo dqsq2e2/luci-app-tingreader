@@ -1,0 +1,32 @@
+name: Daily Maintenance
+
+# Orchestrates all daily tasks in sequence:
+#  1. CI cleanup     – delete stale caches & old workflow runs
+#  2. Backend check  – poll upstream ting-reader for new releases, build if needed
+#
+# Mirrors the VIKINGYFY/packages Daily-Maintenance-Queue pattern.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run at 02:00 CST (18:00 UTC previous day)
+    - cron: '0 18 * * *'
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: daily-maintenance
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: CI Cleanup
+    uses: ./.github/workflows/cleanup-ci.yml
+
+  backend:
+    name: Check & Build Backend
+    needs: cleanup
+    if: ${{ always() }}
+    uses: ./.github/workflows/build-backend.yml
