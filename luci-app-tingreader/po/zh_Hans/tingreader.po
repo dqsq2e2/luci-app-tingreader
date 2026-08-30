@@ -112,8 +112,8 @@ msgstr "%s (剩余 %s)"
 msgid "Repositories"
 msgstr "存储库"
 
-msgid "Audiobook storage library directories. Leave path empty to use the default storage under the data directory."
-msgstr "有声书媒体存储目录。路径留空则自动使用数据目录下的默认存储。"
+msgid "Audiobook storage library directories. When no repository is configured, the data directory is used by default."
+msgstr "有声书媒体存储目录。未配置存储库时，默认使用数据目录。"
 
 msgid "e.g. Audiobooks"
 msgstr "例如：有声书"

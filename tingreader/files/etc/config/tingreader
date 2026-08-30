@@ -4,10 +4,3 @@ config tingreader 'main'
 	option listen_port '3000'
 	option data_dir ''
 	option log_level 'info'
-
-config repository
-	option enabled '1'
-	option name 'Default'
-	option path ''
-
-

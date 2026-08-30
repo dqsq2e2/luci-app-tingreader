@@ -336,7 +336,7 @@ return view.extend({
 		o.value('error', _('Error'));
 
 		s = m.section(form.GridSection, 'repository', _('Repositories'),
-			_('Audiobook storage library directories. Leave path empty to use the default storage under the data directory.'));
+			_('Audiobook storage library directories. When no repository is configured, the data directory is used by default.'));
 		s.addremove = true;
 		s.anonymous = true;
 		s.sortable = true;
@@ -353,7 +353,7 @@ return view.extend({
 		o.editable = true;
 
 		o = s.option(form.Value, 'path', _('Path'));
-		o.placeholder = defaultDataDir + '/storage';
+		o.validate = validateRepositoryPath;
 		o.editable = true;
 
 		return m.render();
