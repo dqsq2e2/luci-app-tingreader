@@ -27,16 +27,6 @@ on:
         required: false
         default: ''
 
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/build.yml'
-      - 'luci-app-tingreader/**'
-      - 'scripts/**'
-      - 'tingreader/**'
-      - 'version.mk'
-
 permissions:
   contents: write
 
