@@ -15,7 +15,8 @@ set -Eeuo pipefail
 
 SELF_REPO="dqsq2e2/luci-app-tingreader"
 UPSTREAM_REPO="dqsq2e2/ting-reader"
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}") && cd .. && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 VERSION_FILE="$ROOT_DIR/version.mk"
 REQUESTED_VERSION="${1:-latest}"
 WORK_DIR="$(mktemp -d)"
