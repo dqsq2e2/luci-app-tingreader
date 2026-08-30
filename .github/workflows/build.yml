@@ -49,10 +49,16 @@ jobs:
           - arch: aarch64_generic
             sdk: 24.10.8
             format: ipk
+          - arch: aarch64_cortex-a53
+            sdk: 24.10.8
+            format: ipk
           - arch: x86_64
             sdk: 25.12.5
             format: apk
           - arch: aarch64_generic
+            sdk: 25.12.5
+            format: apk
+          - arch: aarch64_cortex-a53
             sdk: 25.12.5
             format: apk
 
@@ -139,6 +145,7 @@ jobs:
 
             - `24.10.8` archives contain IPK packages for opkg-based OpenWrt.
             - `25.12.5` archives contain APK packages for apk-based OpenWrt.
+            - ARM64 core binaries are identical, but package architecture labels must match the firmware (`aarch64_generic` or `aarch64_cortex-a53`).
             - Install `tingreader`, `luci-app-tingreader`, and optionally `luci-i18n-tingreader-zh-cn` from the same archive.
 
             ${{ inputs.release_notes }}
