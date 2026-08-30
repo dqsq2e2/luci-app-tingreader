@@ -114,22 +114,29 @@ done < "$temp_dir/caches-sorted.tsv"
 # ── Clean workflow runs ────────────────────────────────────────────────────
 gh api --paginate \
 	"repos/$GITHUB_REPOSITORY/actions/runs?status=completed&per_page=100" \
-	--jq '.workflow_runs[] | [.id, .workflow_id, .name, .created_at] | @tsv' \
+	--jq '.workflow_runs[] | [.id, .workflow_id, .name, .conclusion, .created_at] | @tsv' \
 	> "$temp_dir/runs.tsv"
-LC_ALL=C sort -t $'\t' -k4,4r "$temp_dir/runs.tsv" > "$temp_dir/runs-sorted.tsv"
+LC_ALL=C sort -t $'\t' -k5,5r "$temp_dir/runs.tsv" > "$temp_dir/runs-sorted.tsv"
 
-declare -A workflow_run_counts=()
+declare -A workflow_success_counts=()
 deleted_run_count=0
-while IFS=$'\t' read -r run_id workflow_id name created_at; do
+while IFS=$'\t' read -r run_id workflow_id name conclusion created_at; do
 	[[ -n "$run_id" ]] || continue
-	count=$(( ${workflow_run_counts[$workflow_id]:-0} + 1 ))
-	workflow_run_counts["$workflow_id"]="$count"
-	(( count > RUN_KEEP_PER_WORKFLOW )) || continue
-	created_epoch="$(date -u -d "$created_at" +%s)"
-	(( created_epoch < run_cutoff )) || continue
 
-	delete_run "$run_id" "$name" "$created_at"
-	deleted_run_count=$((deleted_run_count + 1))
+	# Delete any failed or cancelled runs immediately
+	if [[ "$conclusion" != "success" ]]; then
+		delete_run "$run_id" "$name" "$created_at (conclusion: $conclusion)"
+		deleted_run_count=$((deleted_run_count + 1))
+		continue
+	fi
+
+	# For successful runs, keep at most RUN_KEEP_PER_WORKFLOW
+	count=$(( ${workflow_success_counts[$workflow_id]:-0} + 1 ))
+	workflow_success_counts["$workflow_id"]="$count"
+	if (( count > RUN_KEEP_PER_WORKFLOW )); then
+		delete_run "$run_id" "$name" "$created_at (exceeds keep limit of $RUN_KEEP_PER_WORKFLOW)"
+		deleted_run_count=$((deleted_run_count + 1))
+	fi
 done < "$temp_dir/runs-sorted.tsv"
 
 # ── Summary ────────────────────────────────────────────────────────────────
