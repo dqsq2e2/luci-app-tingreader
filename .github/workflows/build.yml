@@ -112,7 +112,6 @@ jobs:
           PACKAGES:         tingreader luci-app-tingreader
           NO_REFRESH_CHECK: 1
           NO_SHFMT_CHECK:   1
-          IGNORE_ERRORS:    1
           MAKEFLAGS:        -j$(nproc)
           V:                s
 
@@ -126,9 +125,12 @@ jobs:
           find "$package_dir" -maxdepth 1 -type f \
             \( -name '*.ipk' -o -name '*.apk' \) -exec cp -v {} "$output_dir/" \;
           cp README.md "$output_dir/README.md"
-          # Fail loudly if no packages were produced.
-          test -n "$(find "$output_dir" -maxdepth 1 -type f \
-            -name "*.${{ matrix.format }}" -print -quit)"
+          
+          # Fail loudly if tingreader or luci-app-tingreader packages are missing!
+          echo "Verifying generated packages in $output_dir..."
+          ls -la "$output_dir"
+          test -n "$(find "$output_dir" -maxdepth 1 -type f -name "tingreader*.${{ matrix.format }}" -print -quit)"
+          test -n "$(find "$output_dir" -maxdepth 1 -type f -name "luci-app-tingreader*.${{ matrix.format }}" -print -quit)"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
