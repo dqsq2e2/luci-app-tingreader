@@ -41,7 +41,7 @@ jobs:
   build:
     name: Build ${{ matrix.arch }}-${{ matrix.sdk }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -146,12 +146,11 @@ jobs:
     name: Publish release
     needs: build
     runs-on: ubuntu-latest
-    # Publish when:
-    #  - manually triggered with a non-empty release_tag, OR
-    #  - automatically triggered by backend-published (uses the version as tag)
+    # Publish when triggered manually or automatically by backend-published
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.release_tag != '') ||
-      github.event_name == 'repository_dispatch'
+      always() && !cancelled() &&
+      ((github.event_name == 'workflow_dispatch' && inputs.release_tag != '') ||
+      github.event_name == 'repository_dispatch')
 
     steps:
       - name: Checkout (for README)
@@ -198,7 +197,7 @@ jobs:
             for arch in aarch64_generic aarch64_cortex-a53 \
                         aarch64_cortex-a72 aarch64_cortex-a76; do
               src="artifacts/TingReader-${VERSION}-${arch}-${sdk}"
-              test -d "$src"
+              test -d "$src" || continue
               mkdir -p "$arm64_dir/$arch"
               find "$src" -maxdepth 1 -type f ! -name 'README.md' \
                 -exec cp -v {} "$arm64_dir/$arch/" \;
@@ -209,9 +208,10 @@ jobs:
 
             # ── x86_64 ───────────────────────────────────────────────────────
             x86_src="artifacts/TingReader-${VERSION}-x86_64-${sdk}"
-            test -d "$x86_src"
-            (cd "$x86_src" && zip -9 -r \
-              "$GITHUB_WORKSPACE/release/TingReader-${VERSION}-x86_64-${sdk}.zip" .)
+            if [ -d "$x86_src" ]; then
+              (cd "$x86_src" && zip -9 -r \
+                "$GITHUB_WORKSPACE/release/TingReader-${VERSION}-x86_64-${sdk}.zip" .)
+            fi
           done
 
       - name: Publish GitHub release
