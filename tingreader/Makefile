@@ -51,6 +51,7 @@ define Package/tingreader
   TITLE:=Ting Reader audiobook server
   URL:=https://github.com/dqsq2e2/ting-reader
   DEPENDS:=+ca-bundle
+  USERID:=tingreader=32771:tingreader=32771
   PKG_FLAGS:=nonshared
 endef
 

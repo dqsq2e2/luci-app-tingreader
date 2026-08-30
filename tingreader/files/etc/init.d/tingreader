@@ -7,9 +7,46 @@ STOP=10
 PROG=/usr/bin/ting-reader
 CONFIG_GENERATOR=/usr/libexec/tingreader-generate-config
 RUNTIME_CONFIG=/var/etc/tingreader.toml
+RUN_USER="tingreader"
+RUN_GROUP="tingreader"
 
 log_error() {
 	logger -t tingreader -p daemon.err "$*"
+}
+
+ensure_user() {
+	. /lib/functions.sh
+	if ! grep -q "^${RUN_GROUP}:" /etc/group 2>/dev/null; then
+		group_add "$RUN_GROUP" 32771
+	fi
+	if ! grep -q "^${RUN_USER}:" /etc/passwd 2>/dev/null; then
+		user_add "$RUN_USER" 32771 32771 "Ting Reader" "/var/run/tingreader" "/bin/false"
+	fi
+}
+
+grant_repo_permission() {
+	local section="$1"
+	local path enabled
+	config_get_bool enabled "$section" enabled 1
+	[ "$enabled" -eq 1 ] || return 0
+	config_get path "$section" path ''
+	if [ -n "$path" ] && [ -d "$path" ]; then
+		chown -R "$RUN_USER:$RUN_GROUP" "$path" 2>/dev/null
+		chmod -R u+rwX,g+rX "$path" 2>/dev/null
+	fi
+}
+
+grant_all_permissions() {
+	local data_dir="$1"
+	ensure_user
+
+	# Grant permissions to data_dir and temporary directory
+	mkdir -p "$data_dir" "$data_dir/logs" "$data_dir/plugins" "$data_dir/tmp" /var/etc /tmp/tingreader || return 1
+	chown -R "$RUN_USER:$RUN_GROUP" "$data_dir" /tmp/tingreader 2>/dev/null
+	chmod -R u+rwX,g+rX "$data_dir" /tmp/tingreader 2>/dev/null
+
+	# Grant permissions to user-configured repository paths
+	config_foreach grant_repo_permission repository
 }
 
 start_service() {
@@ -24,7 +61,17 @@ start_service() {
 		return 1
 	}
 
-	config_get data_dir main data_dir '/etc/tingreader'
+	config_get data_dir main data_dir ''
+	if [ -z "$data_dir" ]; then
+		for mount_pt in $(awk '$3 ~ /^(ext[234]|f2fs|btrfs|xfs|zfs|ntfs|vfat|exfat|fuseblk|cifs)$/ && $2 !~ /^\/(rom|overlay|boot|tmp|var)?$/ {print $2}' /proc/mounts 2>/dev/null); do
+			if [ -w "$mount_pt" ]; then
+				data_dir="$mount_pt/tingreader"
+				break
+			fi
+		done
+		data_dir="${data_dir:-/etc/tingreader}"
+	fi
+
 	case "$data_dir" in
 		/*) ;;
 		*)
@@ -33,19 +80,24 @@ start_service() {
 			;;
 	esac
 
-	mkdir -p /var/etc "$data_dir" "$data_dir/logs" "$data_dir/plugins" /tmp/tingreader || return 1
+	grant_all_permissions "$data_dir"
+
 	"$CONFIG_GENERATOR" "$RUNTIME_CONFIG" || {
 		log_error "Unable to generate $RUNTIME_CONFIG"
 		return 1
 	}
+	chown "$RUN_USER:$RUN_GROUP" "$RUNTIME_CONFIG" 2>/dev/null
+	chmod 600 "$RUNTIME_CONFIG"
 
 	procd_open_instance tingreader
 	procd_set_param command "$PROG" --config "$RUNTIME_CONFIG"
+	procd_set_param user "$RUN_USER"
+	procd_set_param group "$RUN_GROUP"
 	procd_set_param env \
-		"HOME=/root" \
+		"HOME=$data_dir" \
 		"STATIC_DIR=/usr/lib/tingreader/static" \
 		"DATA_DIR=$data_dir" \
-		"TMPDIR=/tmp/tingreader"
+		"TMPDIR=$data_dir/tmp"
 	procd_set_param stdout 1
 	procd_set_param stderr 1
 	procd_set_param respawn 3600 5 5

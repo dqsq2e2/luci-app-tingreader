@@ -40,7 +40,7 @@ function decode_mount_path(path) {
 }
 
 function storage_mounts() {
-	let mounts = [];
+	let raw_mounts = [];
 	let content = readfile('/proc/mounts') || '';
 
 	for (let line in split(content, '\n')) {
@@ -57,12 +57,41 @@ function storage_mounts() {
 		if (!stats || stats.freesize < 104857600 || !access(path, 'w'))
 			continue;
 
-		push(mounts, {
+		push(raw_mounts, {
 			path: path,
 			type: fields[2],
 			total: stats.totalsize,
 			free: stats.freesize
 		});
+	}
+
+	// Sort by shortest path length first so parent root mounts come before sub-mounts
+	sort(raw_mounts, function(a, b) {
+		return length(a.path) - length(b.path);
+	});
+
+	let mounts = [];
+	let seen_fs = {};
+	let root_paths = [];
+
+	for (let m in raw_mounts) {
+		let is_subpath = false;
+		for (let rp in root_paths) {
+			if (index(m.path, rp + '/') == 0) {
+				is_subpath = true;
+				break;
+			}
+		}
+		if (is_subpath)
+			continue;
+
+		let fs_key = m.total + ':' + m.free;
+		if (seen_fs[fs_key])
+			continue;
+		seen_fs[fs_key] = true;
+		push(root_paths, m.path);
+
+		push(mounts, m);
 	}
 
 	sort(mounts, function(a, b) {

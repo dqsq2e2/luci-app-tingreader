@@ -313,11 +313,9 @@ return view.extend({
 		o.datatype = 'port';
 		o.rmempty = false;
 
-		o = s.option(form.Value, 'data_dir', _('Database and data directory'),
+		o = s.option(form.ListValue, 'data_dir', _('Database and data directory'),
 			_('Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data.'));
 		o.default = defaultDataDir;
-		o.placeholder = defaultDataDir;
-		o.validate = validateRepositoryPath;
 		o.rmempty = false;
 
 		if (!mounts.length) {
