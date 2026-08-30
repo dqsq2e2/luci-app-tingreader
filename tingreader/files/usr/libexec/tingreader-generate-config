@@ -86,7 +86,6 @@ config_foreach append_repository repository
 if [ -z "$PRIMARY_ROOT" ]; then
 	PRIMARY_ROOT="$data_dir/storage"
 	# Persist the auto-created repository into UCI so it appears in LuCI
-	local _new_id
 	_new_id="$(uci add tingreader repository)"
 	uci -q set "tingreader.$_new_id.enabled=1"
 	uci -q set "tingreader.$_new_id.name=Default"

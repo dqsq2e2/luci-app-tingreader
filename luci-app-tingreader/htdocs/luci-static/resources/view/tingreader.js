@@ -320,6 +320,17 @@ return view.extend({
 		o.validate = validateRepositoryPath;
 		o.rmempty = false;
 
+		if (!mounts.length) {
+			o.value('/etc/tingreader', '/etc/tingreader');
+		} else {
+			mounts.forEach(function(mount) {
+				var path = mount.path.replace(/\/$/, '') + '/tingreader';
+				var label = _('%s (%s total, %s free, %s)').format(path, formatBytes(mount.total), formatBytes(mount.free), mount.type || 'unknown');
+				o.value(path, label);
+			});
+		}
+
+
 		o = s.option(form.ListValue, 'log_level', _('Log level'));
 		o.default = 'info';
 		o.value('debug', _('Debug'));
