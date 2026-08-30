@@ -119,11 +119,11 @@ jobs:
       - name: Prepare artifact directory
         shell: bash
         run: |
-          package_dir="bin/packages/${{ matrix.arch }}/tingreader_ci"
           output_dir="artifacts/${{ matrix.arch }}-${{ matrix.sdk }}"
           mkdir -p "$output_dir"
-          find "$package_dir" -maxdepth 1 -type f \
-            \( -name '*.ipk' -o -name '*.apk' \) -exec cp -v {} "$output_dir/" \;
+          find bin/ -type f \
+            \( -name 'tingreader*.'${{ matrix.format }} -o -name 'luci-*tingreader*.'${{ matrix.format }} \) \
+            -exec cp -v {} "$output_dir/" \;
           cp README.md "$output_dir/README.md"
           
           # Fail loudly if tingreader or luci-app-tingreader packages are missing!
