@@ -94,24 +94,31 @@ msgstr ""
 msgid "LuCI App"
 msgstr ""
 
-msgid "Data directory"
+msgid "Database and data directory"
 msgstr ""
 
-msgid "Directory used for database, plugins, and server runtime data."
+msgid "Directory used for database, plugins, logs, and default storage. Select a detected storage drive or enter a custom path."
 msgstr ""
 
-msgid "Log level"
+msgid "Default / System Flash"
 msgstr ""
 
-msgid "Debug"
+msgid "%s (%s total, %s free, %s)"
 msgstr ""
 
-msgid "Info"
+msgid "%s (%s free)"
 msgstr ""
 
-msgid "Warning"
+msgid "Storage devices"
 msgstr ""
 
-msgid "Error"
+msgid "Refresh storage"
 msgstr ""
+
+msgid "Configure audiobook repository paths. You can add multiple storage directories."
+msgstr ""
+
+msgid "e.g. Audiobooks"
+msgstr ""
+
 

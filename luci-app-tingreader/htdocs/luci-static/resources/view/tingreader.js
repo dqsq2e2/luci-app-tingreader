@@ -38,6 +38,17 @@ function withPercent(value) {
 	return /%$/.test(value) ? value : value + '%';
 }
 
+function formatBytes(bytes) {
+	bytes = +bytes || 0;
+	if (bytes >= 1024 * 1024 * 1024 * 1024)
+		return '%.1f TiB'.format(bytes / 1024 / 1024 / 1024 / 1024);
+	if (bytes >= 1024 * 1024 * 1024)
+		return '%.1f GiB'.format(bytes / 1024 / 1024 / 1024);
+	if (bytes >= 1024 * 1024)
+		return '%.1f MiB'.format(bytes / 1024 / 1024);
+	return '%.1f KiB'.format(bytes / 1024);
+}
+
 function managementUrl() {
 	var host = uci.get('tingreader', 'main', 'listen_addr') || window.location.hostname;
 	var port = uci.get('tingreader', 'main', 'listen_port') || '3000';
@@ -244,6 +255,7 @@ return view.extend({
 
 	render: function(data) {
 		var info = data[0] || {};
+		var mounts = L.toArray(info.mounts);
 		var m, s, o;
 
 		var desc = _('Ting Reader is a self-hosted audiobook server and management tool. Default administrator login username: admin, password: admin123.');
@@ -298,12 +310,19 @@ return view.extend({
 		o.datatype = 'port';
 		o.rmempty = false;
 
-		o = s.option(form.Value, 'data_dir', _('Data directory'));
+		o = s.option(form.Value, 'data_dir', _('Database and data directory'),
+			_('Directory used for database, plugins, logs, and default storage. Select a detected storage drive or enter a custom path.'));
 		o.default = '/etc/tingreader';
 		o.placeholder = '/etc/tingreader';
-		o.description = _('Directory used for database, plugins, and server runtime data.');
 		o.validate = validateRepositoryPath;
 		o.rmempty = false;
+
+		o.value('/etc/tingreader', '/etc/tingreader (' + _('Default / System Flash') + ')');
+		mounts.forEach(function(mount) {
+			var path = mount.path.replace(/\/$/, '') + '/tingreader';
+			var label = _('%s (%s total, %s free, %s)').format(path, formatBytes(mount.total), formatBytes(mount.free), mount.type || 'unknown');
+			o.value(path, label);
+		});
 
 		o = s.option(form.ListValue, 'log_level', _('Log level'));
 		o.default = 'info';
@@ -312,7 +331,15 @@ return view.extend({
 		o.value('warn', _('Warning'));
 		o.value('error', _('Error'));
 
-		s = m.section(form.GridSection, 'repository', _('Repositories'));
+		o = s.option(form.Button, '_refresh_storage', _('Storage devices'));
+		o.inputtitle = _('Refresh storage');
+		o.inputstyle = 'reload';
+		o.onclick = function() {
+			window.location.reload();
+		};
+
+		s = m.section(form.GridSection, 'repository', _('Repositories'),
+			_('Configure audiobook repository paths. You can add multiple storage directories.'));
 		s.addremove = true;
 		s.anonymous = true;
 		s.sortable = true;
@@ -325,13 +352,19 @@ return view.extend({
 		o.editable = true;
 
 		o = s.option(form.Value, 'name', _('Name'));
-		o.placeholder = _('Repository');
-		o.rmempty = false;
+		o.placeholder = _('e.g. Audiobooks');
+		o.editable = true;
 
 		o = s.option(form.Value, 'path', _('Path'));
-		o.placeholder = '/mnt/audiobooks';
-		o.rmempty = false;
+		o.placeholder = '/mnt/sda1/audiobooks';
 		o.validate = validateRepositoryPath;
+		o.editable = true;
+
+		mounts.forEach(function(mount) {
+			var path = mount.path.replace(/\/$/, '') + '/audiobooks';
+			var label = _('%s (%s free)').format(path, formatBytes(mount.free));
+			o.value(path, label);
+		});
 
 		return m.render();
 	}

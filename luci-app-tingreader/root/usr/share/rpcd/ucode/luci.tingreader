@@ -2,11 +2,78 @@
 
 'use strict';
 
-import { access, glob, readfile } from 'fs';
+import { access, glob, readfile, statvfs } from 'fs';
 import { process_list } from 'luci.sys';
 
 const wrapper = '/usr/bin/ting-reader';
 const binary = '/usr/lib/tingreader/ting-reader';
+
+const supportedFilesystems = {
+	'ext2': true,
+	'ext3': true,
+	'ext4': true,
+	'f2fs': true,
+	'btrfs': true,
+	'xfs': true,
+	'ubifs': true,
+	'jffs2': true,
+	'zfs': true,
+	'ntfs': true,
+	'vfat': true,
+	'exfat': true,
+	'fuse': true,
+	'fuseblk': true,
+	'cifs': true
+};
+
+const ignoredMounts = {
+	'/': true,
+	'/rom': true,
+	'/overlay': true,
+	'/boot': true,
+	'/tmp': true,
+	'/var': true
+};
+
+function decode_mount_path(path) {
+	return replace(replace(replace(path, /\\040/g, ' '), /\\011/g, '\t'), /\\134/g, '\\');
+}
+
+function storage_mounts() {
+	let mounts = [];
+	let content = readfile('/proc/mounts') || '';
+
+	for (let line in split(content, '\n')) {
+		let fields = split(trim(line), /\s+/);
+		if (length(fields) < 4 || !supportedFilesystems[fields[2]])
+			continue;
+
+		let path = decode_mount_path(fields[1]);
+		if (!match(path, /^\/[A-Za-z0-9_.\/-]+$/) || match(path, /(^|\/)\.\.(\/|$)/) ||
+		    ignoredMounts[path] || match(',' + fields[3] + ',', /,ro,/))
+			continue;
+
+		let stats = statvfs(path);
+		if (!stats || stats.freesize < 104857600 || !access(path, 'w'))
+			continue;
+
+		push(mounts, {
+			path: path,
+			type: fields[2],
+			total: stats.totalsize,
+			free: stats.freesize
+		});
+	}
+
+	sort(mounts, function(a, b) {
+		if (a.total == b.total)
+			return b.free - a.free;
+
+		return b.total - a.total;
+	});
+
+	return mounts;
+}
 
 function process_status() {
 	let result = {
@@ -55,7 +122,8 @@ const methods = {
 	info: {
 		call: function() {
 			return {
-				version: trim(readfile('/usr/share/tingreader/version') || '')
+				version: trim(readfile('/usr/share/tingreader/version') || ''),
+				mounts: storage_mounts()
 			};
 		}
 	},

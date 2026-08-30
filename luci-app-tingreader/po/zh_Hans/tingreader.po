@@ -97,25 +97,32 @@ msgstr "GitHub"
 msgid "LuCI App"
 msgstr "LuCI 插件"
 
-msgid "Data directory"
-msgstr "数据目录"
+msgid "Database and data directory"
+msgstr "数据库与数据保存目录"
 
-msgid "Directory used for database, plugins, and server runtime data."
-msgstr "用于存放数据库、插件以及服务运行数据的目录。"
+msgid "Directory used for database, plugins, logs, and default storage. Select a detected storage drive or enter a custom path."
+msgstr "用于保存数据库、插件、日志及默认有声书文件的目录。可直接选择已挂载的存储设备或手动输入自定义路径。"
 
-msgid "Log level"
-msgstr "日志等级"
+msgid "Default / System Flash"
+msgstr "默认 / 系统内部存储"
 
-msgid "Debug"
-msgstr "调试 (Debug)"
+msgid "%s (%s total, %s free, %s)"
+msgstr "%s (总共 %s, 剩余 %s, %s)"
 
-msgid "Info"
-msgstr "信息 (Info)"
+msgid "%s (%s free)"
+msgstr "%s (剩余 %s)"
 
-msgid "Warning"
-msgstr "警告 (Warning)"
+msgid "Storage devices"
+msgstr "存储设备"
 
-msgid "Error"
-msgstr "错误 (Error)"
+msgid "Refresh storage"
+msgstr "刷新挂载"
+
+msgid "Configure audiobook repository paths. You can add multiple storage directories."
+msgstr "配置有声书存储库路径。您可以添加多个媒体目录。"
+
+msgid "e.g. Audiobooks"
+msgstr "例如：有声书"
+
 
 
