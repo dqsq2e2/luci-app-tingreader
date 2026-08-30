@@ -106,7 +106,7 @@ msgstr ""
 msgid "%s (%s free)"
 msgstr ""
 
-msgid "Repositories"
+msgid "Local Repository Paths"
 msgstr ""
 
 msgid "Audiobook storage library directories. When no repository is configured, the data directory is used by default."

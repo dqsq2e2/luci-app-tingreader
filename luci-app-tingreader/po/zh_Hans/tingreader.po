@@ -109,8 +109,8 @@ msgstr "%s (总共 %s, 剩余 %s, %s)"
 msgid "%s (%s free)"
 msgstr "%s (剩余 %s)"
 
-msgid "Repositories"
-msgstr "存储库"
+msgid "Local Repository Paths"
+msgstr "本地存储库路径"
 
 msgid "Audiobook storage library directories. When no repository is configured, the data directory is used by default."
 msgstr "有声书媒体存储目录。未配置存储库时，默认使用数据目录。"

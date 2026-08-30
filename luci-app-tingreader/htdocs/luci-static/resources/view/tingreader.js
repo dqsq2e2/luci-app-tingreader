@@ -313,20 +313,12 @@ return view.extend({
 		o.datatype = 'port';
 		o.rmempty = false;
 
-		o = s.option(form.ListValue, 'data_dir', _('Database and data directory'),
+		o = s.option(form.Value, 'data_dir', _('Database and data directory'),
 			_('Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data.'));
 		o.default = defaultDataDir;
+		o.placeholder = defaultDataDir;
+		o.validate = validateRepositoryPath;
 		o.rmempty = false;
-
-		if (!mounts.length) {
-			o.value('/etc/tingreader', '/etc/tingreader');
-		} else {
-			mounts.forEach(function(mount) {
-				var path = mount.path.replace(/\/$/, '') + '/tingreader';
-				var label = _('%s (%s total, %s free, %s)').format(path, formatBytes(mount.total), formatBytes(mount.free), mount.type || 'unknown');
-				o.value(path, label);
-			});
-		}
 
 		o = s.option(form.ListValue, 'log_level', _('Log level'));
 		o.default = 'info';
@@ -335,7 +327,7 @@ return view.extend({
 		o.value('warn', _('Warning'));
 		o.value('error', _('Error'));
 
-		s = m.section(form.GridSection, 'repository', _('Repositories'),
+		s = m.section(form.GridSection, 'repository', _('Local Repository Paths'),
 			_('Audiobook storage library directories. When no repository is configured, the data directory is used by default.'));
 		s.addremove = true;
 		s.anonymous = true;
