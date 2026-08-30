@@ -100,11 +100,14 @@ msgstr "LuCI 插件"
 msgid "Database and data directory"
 msgstr "数据库与数据保存目录"
 
-msgid "Directory used for database, plugins, logs, and default storage. Select a detected storage drive or enter a custom path."
-msgstr "用于保存数据库、插件、日志及默认有声书文件的目录。可直接选择已挂载的存储设备或手动输入自定义路径。"
+msgid "Directory used for database, plugins, logs, temporary files, and default storage (All-in-One). Select a detected storage drive or enter a custom path."
+msgstr "用于存放数据库、插件、日志、临时文件及默认有声书文件的统一主目录（All-in-One）。可直接选择已挂载的存储盘或手动输入路径。"
 
 msgid "Default / System Flash"
 msgstr "默认 / 系统内部存储"
+
+msgid "System Flash"
+msgstr "系统内部存储"
 
 msgid "%s (%s total, %s free, %s)"
 msgstr "%s (总共 %s, 剩余 %s, %s)"
@@ -112,17 +115,30 @@ msgstr "%s (总共 %s, 剩余 %s, %s)"
 msgid "%s (%s free)"
 msgstr "%s (剩余 %s)"
 
-msgid "Storage devices"
-msgstr "存储设备"
+msgid "Extra Media Repositories"
+msgstr "额外媒体存储库"
 
-msgid "Refresh storage"
-msgstr "刷新挂载"
-
-msgid "Configure audiobook repository paths. You can add multiple storage directories."
-msgstr "配置有声书存储库路径。您可以添加多个媒体目录。"
+msgid "Optional extra audiobook repository directories. Default storage is automatically handled under the data directory above."
+msgstr "可选的额外有声书媒体存储目录。默认存储已自动整合于上方的数据目录中。"
 
 msgid "e.g. Audiobooks"
 msgstr "例如：有声书"
+
+msgid "Log level"
+msgstr "日志等级"
+
+msgid "Debug"
+msgstr "调试 (Debug)"
+
+msgid "Info"
+msgstr "信息 (Info)"
+
+msgid "Warning"
+msgstr "警告 (Warning)"
+
+msgid "Error"
+msgstr "错误 (Error)"
+
 
 
 

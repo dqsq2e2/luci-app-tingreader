@@ -256,6 +256,7 @@ return view.extend({
 	render: function(data) {
 		var info = data[0] || {};
 		var mounts = L.toArray(info.mounts);
+		var defaultDataDir = mounts.length ? mounts[0].path.replace(/\/$/, '') + '/tingreader' : '/etc/tingreader';
 		var m, s, o;
 
 		var desc = _('Ting Reader is a self-hosted audiobook server and management tool. Default administrator login username: admin, password: admin123.');
@@ -311,18 +312,23 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'data_dir', _('Database and data directory'),
-			_('Directory used for database, plugins, logs, and default storage. Select a detected storage drive or enter a custom path.'));
-		o.default = '/etc/tingreader';
-		o.placeholder = '/etc/tingreader';
+			_('Directory used for database, plugins, logs, temporary files, and default storage (All-in-One). Select a detected storage drive or enter a custom path.'));
+		o.default = defaultDataDir;
+		o.placeholder = defaultDataDir;
 		o.validate = validateRepositoryPath;
 		o.rmempty = false;
 
-		o.value('/etc/tingreader', '/etc/tingreader (' + _('Default / System Flash') + ')');
+		if (!mounts.length)
+			o.value('/etc/tingreader', '/etc/tingreader (' + _('Default / System Flash') + ')');
+
 		mounts.forEach(function(mount) {
 			var path = mount.path.replace(/\/$/, '') + '/tingreader';
 			var label = _('%s (%s total, %s free, %s)').format(path, formatBytes(mount.total), formatBytes(mount.free), mount.type || 'unknown');
 			o.value(path, label);
 		});
+
+		if (mounts.length)
+			o.value('/etc/tingreader', '/etc/tingreader (' + _('System Flash') + ')');
 
 		o = s.option(form.ListValue, 'log_level', _('Log level'));
 		o.default = 'info';
@@ -331,15 +337,8 @@ return view.extend({
 		o.value('warn', _('Warning'));
 		o.value('error', _('Error'));
 
-		o = s.option(form.Button, '_refresh_storage', _('Storage devices'));
-		o.inputtitle = _('Refresh storage');
-		o.inputstyle = 'reload';
-		o.onclick = function() {
-			window.location.reload();
-		};
-
-		s = m.section(form.GridSection, 'repository', _('Repositories'),
-			_('Configure audiobook repository paths. You can add multiple storage directories.'));
+		s = m.section(form.GridSection, 'repository', _('Extra Media Repositories'),
+			_('Optional extra audiobook repository directories. Default storage is automatically handled under the data directory above.'));
 		s.addremove = true;
 		s.anonymous = true;
 		s.sortable = true;
@@ -356,7 +355,7 @@ return view.extend({
 		o.editable = true;
 
 		o = s.option(form.Value, 'path', _('Path'));
-		o.placeholder = '/mnt/sda1/audiobooks';
+		o.placeholder = _('Path');
 		o.validate = validateRepositoryPath;
 		o.editable = true;
 

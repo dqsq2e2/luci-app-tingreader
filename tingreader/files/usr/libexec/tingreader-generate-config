@@ -46,7 +46,7 @@ append_repository() {
 config_load tingreader
 config_get listen_addr main listen_addr '0.0.0.0'
 config_get listen_port main listen_port '3000'
-config_get data_dir main data_dir '/etc/tingreader'
+config_get data_dir main data_dir ''
 config_get log_level main log_level 'info'
 config_get jwt_secret main jwt_secret ''
 version="$(cat /usr/share/tingreader/version 2>/dev/null)"
@@ -62,6 +62,16 @@ case "$log_level" in
 	*) log_level=info ;;
 esac
 
+if [ -z "$data_dir" ]; then
+	for mount_pt in $(awk '$3 ~ /^(ext[234]|f2fs|btrfs|xfs|zfs|ntfs|vfat|exfat|fuseblk|cifs)$/ && $2 !~ /^\/(rom|overlay|boot|tmp|var)?$/ {print $2}' /proc/mounts 2>/dev/null); do
+		if [ -w "$mount_pt" ]; then
+			data_dir="$mount_pt/tingreader"
+			break
+		fi
+	done
+	data_dir="${data_dir:-/etc/tingreader}"
+fi
+
 valid_absolute_path "$data_dir" || exit 1
 
 if [ -z "$jwt_secret" ]; then
@@ -75,10 +85,9 @@ config_foreach append_repository repository
 
 if [ -z "$PRIMARY_ROOT" ]; then
 	PRIMARY_ROOT="$data_dir/storage"
-	mkdir -p "$PRIMARY_ROOT" || exit 1
 fi
 
-mkdir -p "$(dirname "$OUTPUT")" "$data_dir" "$data_dir/logs" "$data_dir/plugins" /tmp/tingreader || exit 1
+mkdir -p "$(dirname "$OUTPUT")" "$data_dir" "$data_dir/logs" "$data_dir/plugins" "$data_dir/tmp" "$PRIMARY_ROOT" || exit 1
 
 listen_addr="$(toml_escape "$listen_addr")"
 data_dir_escaped="$(toml_escape "$data_dir")"
@@ -132,7 +141,7 @@ hsts_max_age = 31536000
 
 [storage]
 data_dir = "$data_dir_escaped"
-temp_dir = "/tmp/tingreader"
+temp_dir = "$data_dir_escaped/tmp"
 local_storage_root = "$primary_root_escaped"
 local_library_roots = [$ROOTS]
 max_disk_usage = 2147483648
