@@ -17,7 +17,7 @@ function process_status() {
 
 	for (let path in glob('/proc/[0-9]*/cmdline')) {
 		let cmdline = readfile(path) || '';
-		if (!match(cmdline, /\/usr\/lib\/tingreader\/ting-reader/))
+		if (index(cmdline, '/usr/lib/tingreader/ting-reader') < 0 && index(cmdline, '/usr/bin/ting-reader') < 0)
 			continue;
 
 		let fields = match(path, /^\/proc\/([0-9]+)\/cmdline$/);
@@ -33,7 +33,7 @@ function process_status() {
 	result.running = true;
 	result.pid = pid;
 
-	for (let proc in process_list()) {
+	for (let proc in (process_list() || [])) {
 		if (+proc.PID != pid)
 			continue;
 
@@ -63,10 +63,14 @@ const methods = {
 	action: {
 		args: { action: 'string' },
 		call: function(request) {
+			let rc = -1;
 			switch (request.args.action) {
 			case 'start':
 			case 'restart':
-				let rc = system('/etc/init.d/tingreader ' + request.args.action + ' >/dev/null 2>&1');
+				rc = system('/etc/init.d/tingreader ' + request.args.action + ' >/dev/null 2>&1');
+				return { success: rc === 0, code: rc };
+			case 'stop':
+				rc = system('/etc/init.d/tingreader stop >/dev/null 2>&1');
 				return { success: rc === 0, code: rc };
 			default:
 				return { success: false, code: 2, message: 'invalid action' };

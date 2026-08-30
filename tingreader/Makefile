@@ -18,8 +18,8 @@ TINGREADER_BACKEND_RELEASE_URL:=https://github.com/dqsq2e2/luci-app-tingreader/r
 TINGREADER_FRONTEND_RELEASE_URL:=https://github.com/dqsq2e2/ting-reader/releases/download/v$(PKG_VERSION)
 FRONTEND_FILE:=ting-reader-frontend-$(PKG_VERSION).tar.gz
 
-GLIBC_VERSION:=2.36-9+deb12u14
-LIBGCC_VERSION:=12.2.0-14+deb12u1
+GLIBC_VERSION:=2.39-0ubuntu8
+LIBGCC_VERSION:=14-20240412-0ubuntu1
 
 ifeq ($(ARCH),x86_64)
   APP_ARCH:=amd64
@@ -27,8 +27,10 @@ ifeq ($(ARCH),x86_64)
   DEB_TRIPLET:=x86_64-linux-gnu
   LOADER:=ld-linux-x86-64.so.2
   BACKEND_HASH:=$(TINGREADER_BACKEND_AMD64_HASH)
-  LIBC_HASH:=ba4f88f73dbc3ae9055f3c20f4523bfdbaf1ad13ff95e258924f77d20b4fbedf
-  LIBGCC_HASH:=3016e62cb4b7cd8038822870601f5ed131befe942774d0f745622cc77d8a88f7
+  LIBC_HASH:=af36c7ac770770fe3d3c10e85d6bc538e76e57570ba7db7d397fb9f654783ef3
+  LIBGCC_HASH:=a39efdcaa2245f026dc3254ce14fcff255fc430a17064632b6ba7c5da974a912
+  LIBC_URL:=http://archive.ubuntu.com/ubuntu/pool/main/g/glibc
+  LIBGCC_URL:=http://archive.ubuntu.com/ubuntu/pool/main/g/gcc-14
 endif
 
 ifeq ($(ARCH),aarch64)
@@ -37,8 +39,10 @@ ifeq ($(ARCH),aarch64)
   DEB_TRIPLET:=aarch64-linux-gnu
   LOADER:=ld-linux-aarch64.so.1
   BACKEND_HASH:=$(TINGREADER_BACKEND_ARM64_HASH)
-  LIBC_HASH:=01f4330719fd4f65580e16ea5a0527f372fca750e8f588d26deaf09f2d3b1cf4
-  LIBGCC_HASH:=576926b283613db80168ddf76380a3bd877602778cf0d226caa7bfbfa71eacf3
+  LIBC_HASH:=04d7cb73e608b41713b63ef915577f7f5d75e95b1b33174e82e05687fdb6cfaf
+  LIBGCC_HASH:=bb1c262f2ac9aeb357d3344a06f22f1057306694f6200896775a03ecced08b13
+  LIBC_URL:=http://ports.ubuntu.com/pool/main/g/glibc
+  LIBGCC_URL:=http://ports.ubuntu.com/pool/main/g/gcc-14
 endif
 
 BACKEND_FILE:=ting-reader-backend-linux-$(APP_ARCH)-$(PKG_VERSION).tar.gz
@@ -62,14 +66,14 @@ $(eval $(call Download,tingreader-frontend))
 
 define Download/tingreader-libc
   FILE:=$(LIBC_FILE)
-  URL:=https://deb.debian.org/debian/pool/main/g/glibc
+  URL:=$(LIBC_URL)
   HASH:=$(LIBC_HASH)
 endef
 $(eval $(call Download,tingreader-libc))
 
 define Download/tingreader-libgcc
   FILE:=$(LIBGCC_FILE)
-  URL:=https://deb.debian.org/debian/pool/main/g/gcc-12
+  URL:=$(LIBGCC_URL)
   HASH:=$(LIBGCC_HASH)
 endef
 $(eval $(call Download,tingreader-libgcc))
@@ -98,9 +102,11 @@ define Build/Prepare
 	tar -xzf $(DL_DIR)/$(BACKEND_FILE)  -C $(PKG_BUILD_DIR)
 	tar -xzf $(DL_DIR)/$(FRONTEND_FILE) -C $(PKG_BUILD_DIR)
 	cd $(PKG_BUILD_DIR)/debian-root && \
-		ar p $(DL_DIR)/$(LIBC_FILE) data.tar.xz | tar -xJf -
+		(ar p $(DL_DIR)/$(LIBC_FILE) data.tar.zst 2>/dev/null | tar --use-compress-program unzstd -xf - 2>/dev/null || \
+		 ar p $(DL_DIR)/$(LIBC_FILE) data.tar.xz 2>/dev/null | tar -xJf -)
 	cd $(PKG_BUILD_DIR)/debian-root && \
-		ar p $(DL_DIR)/$(LIBGCC_FILE) data.tar.xz | tar -xJf -
+		(ar p $(DL_DIR)/$(LIBGCC_FILE) data.tar.zst 2>/dev/null | tar --use-compress-program unzstd -xf - 2>/dev/null || \
+		 ar p $(DL_DIR)/$(LIBGCC_FILE) data.tar.xz 2>/dev/null | tar -xJf -)
 endef
 
 define Build/Compile
@@ -116,11 +122,16 @@ define Package/tingreader/install
 	if [ -d $(PKG_BUILD_DIR)/preinstalled-plugins ]; then \
 		$(CP) $(PKG_BUILD_DIR)/preinstalled-plugins/. $(1)/usr/lib/tingreader/preinstalled-plugins/; \
 	fi
-	if [ -f $(PKG_BUILD_DIR)/debian-root/lib/$(DEB_TRIPLET)/$(LOADER) ]; then \
+	if [ -f $(PKG_BUILD_DIR)/debian-root/usr/lib/$(DEB_TRIPLET)/$(LOADER) ]; then \
+		$(INSTALL_BIN) $(PKG_BUILD_DIR)/debian-root/usr/lib/$(DEB_TRIPLET)/$(LOADER) \
+			$(1)/usr/lib/tingreader/runtime/$(LOADER); \
+		$(CP) $(PKG_BUILD_DIR)/debian-root/usr/lib/$(DEB_TRIPLET)/lib*.so.* \
+			$(1)/usr/lib/tingreader/runtime/ 2>/dev/null || true; \
+	elif [ -f $(PKG_BUILD_DIR)/debian-root/lib/$(DEB_TRIPLET)/$(LOADER) ]; then \
 		$(INSTALL_BIN) $(PKG_BUILD_DIR)/debian-root/lib/$(DEB_TRIPLET)/$(LOADER) \
 			$(1)/usr/lib/tingreader/runtime/$(LOADER); \
 		$(CP) $(PKG_BUILD_DIR)/debian-root/lib/$(DEB_TRIPLET)/lib*.so.* \
-			$(1)/usr/lib/tingreader/runtime/; \
+			$(1)/usr/lib/tingreader/runtime/ 2>/dev/null || true; \
 	fi
 
 	$(INSTALL_DIR) $(1)/usr/bin $(1)/usr/libexec $(1)/etc/init.d $(1)/etc/config
