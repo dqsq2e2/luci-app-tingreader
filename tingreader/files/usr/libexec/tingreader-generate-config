@@ -93,10 +93,11 @@ if [ -z "$PRIMARY_ROOT" ]; then
 	uci -q commit tingreader
 fi
 
-mkdir -p "$(dirname "$OUTPUT")" "$data_dir" "$data_dir/logs" "$data_dir/plugins" "$data_dir/tmp" "$PRIMARY_ROOT" || exit 1
+app_data_dir="$data_dir/data"
+mkdir -p "$(dirname "$OUTPUT")" "$data_dir" "$app_data_dir" "$app_data_dir/logs" "$app_data_dir/plugins" "$app_data_dir/tmp" "$PRIMARY_ROOT" || exit 1
 
 listen_addr="$(toml_escape "$listen_addr")"
-data_dir_escaped="$(toml_escape "$data_dir")"
+app_data_dir_escaped="$(toml_escape "$app_data_dir")"
 primary_root_escaped="$(toml_escape "$PRIMARY_ROOT")"
 jwt_secret="$(toml_escape "$jwt_secret")"
 version="$(toml_escape "$version")"
@@ -111,12 +112,12 @@ max_connections = 100
 request_timeout = 30
 
 [database]
-path = "$data_dir_escaped/ting-reader.db"
+path = "$app_data_dir_escaped/ting-reader.db"
 connection_pool_size = 10
 busy_timeout = 30000
 
 [plugins]
-plugin_dir = "$data_dir_escaped/plugins"
+plugin_dir = "$app_data_dir_escaped/plugins"
 preinstalled_dir = "/usr/lib/tingreader/preinstalled-plugins"
 enable_hot_reload = true
 max_memory_per_plugin = 536870912
@@ -131,7 +132,7 @@ task_timeout = 600
 level = "$log_level"
 format = "json"
 output = "stdout"
-log_file = "$data_dir_escaped/logs/ting-reader.log"
+log_file = "$app_data_dir_escaped/logs/ting-reader.log"
 max_file_size = 10485760
 max_backups = 5
 
@@ -146,8 +147,8 @@ enable_hsts = false
 hsts_max_age = 31536000
 
 [storage]
-data_dir = "$data_dir_escaped"
-temp_dir = "$data_dir_escaped/tmp"
+data_dir = "$app_data_dir_escaped"
+temp_dir = "$app_data_dir_escaped/tmp"
 local_storage_root = "$primary_root_escaped"
 local_library_roots = [$ROOTS]
 max_disk_usage = 2147483648

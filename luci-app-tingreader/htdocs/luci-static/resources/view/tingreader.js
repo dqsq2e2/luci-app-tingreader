@@ -336,13 +336,16 @@ return view.extend({
 		o.value('warn', _('Warning'));
 		o.value('error', _('Error'));
 
-		s = m.section(form.GridSection, 'repository', _('Local Repository Paths'),
-			_('Configure local audiobook media storage directories. If none is configured on first start, the system automatically creates a default repository under the data directory.'));
+		s = m.section(form.GridSection, 'repository', _('Local Repository Authorized Paths'),
+			_('Configure local repository authorized paths. If none is configured on first start, the system automatically creates a default authorized path under the data directory.'));
 		s.addremove = true;
 		s.anonymous = true;
 		s.sortable = true;
 		s.nodescriptions = true;
-		s.addbtntitle = _('Add repository');
+		s.addbtntitle = _('Add local repository authorized path');
+		s.modaltitle = function(section_id) {
+			return section_id ? _('Edit local repository authorized path') : _('Add local repository authorized path');
+		};
 
 		o = s.option(form.Flag, 'enabled', _('Enable'));
 		o.default = '1';

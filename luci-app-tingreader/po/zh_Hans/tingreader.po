@@ -109,11 +109,17 @@ msgstr "%s (总共 %s, 剩余 %s, %s)"
 msgid "%s (%s free)"
 msgstr "%s (剩余 %s)"
 
-msgid "Local Repository Paths"
-msgstr "本地存储库路径"
+msgid "Local Repository Authorized Paths"
+msgstr "本地存储库授权路径"
 
-msgid "Configure local audiobook media storage directories. If none is configured on first start, the system automatically creates a default repository under the data directory."
-msgstr "配置本地有声书媒体存储目录。首次启动若未配置，系统会自动在数据目录下创建默认存储库。"
+msgid "Configure local repository authorized paths. If none is configured on first start, the system automatically creates a default authorized path under the data directory."
+msgstr "配置本地存储库授权路径。首次启动若未配置，系统会自动在数据目录下创建默认本地存储库授权路径。"
+
+msgid "Add local repository authorized path"
+msgstr "添加本地存储库授权路径"
+
+msgid "Edit local repository authorized path"
+msgstr "编辑本地存储库授权路径"
 
 msgid "e.g. Audiobooks"
 msgstr "例如：有声书"

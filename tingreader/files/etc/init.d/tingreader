@@ -41,7 +41,7 @@ grant_all_permissions() {
 	ensure_user
 
 	# Grant permissions to data_dir and temporary directory
-	mkdir -p "$data_dir" "$data_dir/logs" "$data_dir/plugins" "$data_dir/tmp" /var/etc /tmp/tingreader || return 1
+	mkdir -p "$data_dir" "$data_dir/data" "$data_dir/data/logs" "$data_dir/data/plugins" "$data_dir/data/tmp" /var/etc /tmp/tingreader || return 1
 	chown -R "$RUN_USER:$RUN_GROUP" "$data_dir" /tmp/tingreader 2>/dev/null
 	chmod -R u+rwX,g+rX "$data_dir" /tmp/tingreader 2>/dev/null
 
@@ -96,8 +96,8 @@ start_service() {
 	procd_set_param env \
 		"HOME=$data_dir" \
 		"STATIC_DIR=/usr/lib/tingreader/static" \
-		"DATA_DIR=$data_dir" \
-		"TMPDIR=$data_dir/tmp"
+		"DATA_DIR=$data_dir/data" \
+		"TMPDIR=$data_dir/data/tmp"
 	procd_set_param stdout 1
 	procd_set_param stderr 1
 	procd_set_param respawn 3600 5 5
