@@ -164,11 +164,25 @@ jobs:
           echo "Found binary: $BINARY"
           file "$BINARY"
 
-          mkdir -p _pkg/preinstalled-plugins
+          mkdir -p _pkg/preinstalled-plugins _pkg/runtime
           cp "$BINARY"   _pkg/ting-reader
           cp config.toml _pkg/config.toml
           curl -fL --retry 3 "https://github.com/dqsq2e2/ting-reader-plugin-store/releases/download/v1.0.0/ting-reader-plugin-store-1.0.0.tr" \
             -o _pkg/preinstalled-plugins/ting-reader-plugin-store.tr
+
+          # Bundle matching glibc & gcc runtime libraries directly from the native runner
+          TRIPLET="$(gcc -dumpmachine)"
+          echo "Tripled: $TRIPLET"
+          cp -L /lib/${TRIPLET}/ld-linux*.so* _pkg/runtime/ 2>/dev/null || cp -L /lib64/ld-linux*.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/ld-linux*.so* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libc.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libc.so* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libm.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libm.so* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libpthread.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libpthread.so* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libdl.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libdl.so* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/librt.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/librt.so* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libresolv.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libresolv.so* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libgcc_s.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libgcc_s.so* _pkg/runtime/ 2>/dev/null || true
+          echo "Bundled runtime libraries:"
+          ls -la _pkg/runtime/
 
           ARCHIVE="ting-reader-backend-linux-${{ matrix.arch_label }}-${VERSION}.tar.gz"
           tar -czf "$GITHUB_WORKSPACE/$ARCHIVE" -C _pkg .
