@@ -7,6 +7,7 @@ include $(TINGREADER_PACKAGE_DIR)../version.mk
 PKG_NAME:=tingreader
 PKG_VERSION:=$(TINGREADER_VERSION)
 PKG_RELEASE:=1
+PKG_FLAGS:=nonshared
 
 PKG_LICENSE:=AGPL-3.0-only
 PKG_MAINTAINER:=Ting Reader contributors
@@ -53,6 +54,7 @@ define Package/tingreader
   TITLE:=Ting Reader audiobook server
   URL:=https://github.com/dqsq2e2/ting-reader
   DEPENDS:=@(x86_64||aarch64) +ca-bundle
+  PKG_FLAGS:=nonshared
 endef
 
 define Package/tingreader/description
