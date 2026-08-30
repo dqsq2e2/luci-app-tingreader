@@ -174,13 +174,15 @@ jobs:
           TRIPLET="$(gcc -dumpmachine)"
           echo "Tripled: $TRIPLET"
           cp -L /lib/${TRIPLET}/ld-linux*.so* _pkg/runtime/ 2>/dev/null || cp -L /lib64/ld-linux*.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/ld-linux*.so* _pkg/runtime/ 2>/dev/null || true
-          cp -L /lib/${TRIPLET}/libc.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libc.so* _pkg/runtime/ 2>/dev/null || true
-          cp -L /lib/${TRIPLET}/libm.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libm.so* _pkg/runtime/ 2>/dev/null || true
-          cp -L /lib/${TRIPLET}/libpthread.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libpthread.so* _pkg/runtime/ 2>/dev/null || true
-          cp -L /lib/${TRIPLET}/libdl.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libdl.so* _pkg/runtime/ 2>/dev/null || true
-          cp -L /lib/${TRIPLET}/librt.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/librt.so* _pkg/runtime/ 2>/dev/null || true
-          cp -L /lib/${TRIPLET}/libresolv.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libresolv.so* _pkg/runtime/ 2>/dev/null || true
-          cp -L /lib/${TRIPLET}/libgcc_s.so* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libgcc_s.so* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libc.so.* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libc.so.* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libm.so.* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libm.so.* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libpthread.so.* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libpthread.so.* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libdl.so.* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libdl.so.* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/librt.so.* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/librt.so.* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libresolv.so.* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libresolv.so.* _pkg/runtime/ 2>/dev/null || true
+          cp -L /lib/${TRIPLET}/libgcc_s.so.* _pkg/runtime/ 2>/dev/null || cp -L /usr/lib/${TRIPLET}/libgcc_s.so.* _pkg/runtime/ 2>/dev/null || true
+          # Remove any development linker scripts (.so without version suffix)
+          find _pkg/runtime -name '*.so' -delete
           echo "Bundled runtime libraries:"
           ls -la _pkg/runtime/
 
