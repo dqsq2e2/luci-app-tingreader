@@ -102,6 +102,36 @@ jobs:
           restore-keys: |
             tingreader-dl-${{ matrix.arch }}-
 
+      - name: Pre-download source archives
+        shell: bash
+        run: |
+          mkdir -p dl
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ "${{ matrix.arch }}" == x86_64* ]]; then
+            BACKEND_ARCH="amd64"
+          else
+            BACKEND_ARCH="arm64"
+          fi
+          BACKEND_FILE="ting-reader-backend-linux-${BACKEND_ARCH}-${VERSION}.tar.gz"
+          FRONTEND_FILE="ting-reader-frontend-${VERSION}.tar.gz"
+
+          if [ ! -s "dl/${BACKEND_FILE}" ]; then
+            echo "Pre-fetching ${BACKEND_FILE}..."
+            curl -fL --retry 5 --retry-delay 2 \
+              "https://github.com/dqsq2e2/luci-app-tingreader/releases/download/backend-v${VERSION}/${BACKEND_FILE}" \
+              -o "dl/${BACKEND_FILE}"
+          fi
+
+          if [ ! -s "dl/${FRONTEND_FILE}" ]; then
+            echo "Pre-fetching ${FRONTEND_FILE}..."
+            curl -fL --retry 5 --retry-delay 2 \
+              "https://github.com/dqsq2e2/ting-reader/releases/download/v${VERSION}/${FRONTEND_FILE}" \
+              -o "dl/${FRONTEND_FILE}"
+          fi
+
+          echo "Verified pre-downloaded source archives in dl/:"
+          ls -lh dl/
+
       # ── Build ─────────────────────────────────────────────────────────────
       - name: Build packages
         uses: openwrt/gh-action-sdk@main
