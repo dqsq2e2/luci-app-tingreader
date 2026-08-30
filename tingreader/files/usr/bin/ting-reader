@@ -1,5 +1,22 @@
 #!/bin/sh
 
-# The ting-reader backend is a statically-linked binary; no custom loader or
-# LD_LIBRARY_PATH is needed.
-exec /usr/lib/tingreader/ting-reader "$@"
+ARCH="$(uname -m)"
+case "$ARCH" in
+	x86_64)
+		LOADER="/usr/lib/tingreader/runtime/ld-linux-x86-64.so.2"
+		;;
+	aarch64)
+		LOADER="/usr/lib/tingreader/runtime/ld-linux-aarch64.so.1"
+		;;
+	*)
+		LOADER=""
+		;;
+esac
+
+RUNTIME_DIR="/usr/lib/tingreader/runtime"
+
+if [ -n "$LOADER" ] && [ -f "$LOADER" ] && [ -d "$RUNTIME_DIR" ]; then
+	exec "$LOADER" --library-path "$RUNTIME_DIR" /usr/lib/tingreader/ting-reader "$@"
+else
+	exec /usr/lib/tingreader/ting-reader "$@"
+fi

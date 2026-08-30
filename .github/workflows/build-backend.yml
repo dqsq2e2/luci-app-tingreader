@@ -101,10 +101,8 @@ jobs:
         include:
           - arch_label: amd64
             runner: ubuntu-latest
-            target: x86_64-unknown-linux-musl
           - arch_label: arm64
             runner: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-musl
 
     env:
       VERSION: ${{ needs.check.outputs.version }}
@@ -120,12 +118,10 @@ jobs:
       - name: Install system build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake clang libssl-dev pkg-config musl-tools musl-dev build-essential
+          sudo apt-get install -y cmake clang libssl-dev pkg-config build-essential
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
 
       - name: Cache Rust artifacts
         uses: actions/cache@v4
@@ -150,18 +146,17 @@ jobs:
         env:
           OPENSSL_STATIC: "1"
           OPENSSL_VENDORED: "1"
-          RUSTFLAGS: "-C target-feature=+crt-static"
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release
 
       - name: Create archive
         id: pkg
         working-directory: backend
         run: |
-          BINARY=$(find "target/${{ matrix.target }}/release" target/release -maxdepth 1 -type f \
-            \( -name 'ting_reader' -o -name 'ting-reader' \) 2>/dev/null | head -n1)
+          BINARY=$(find target/release -maxdepth 1 -type f \
+            \( -name 'ting_reader' -o -name 'ting-reader' \) | head -n1)
 
           if [ -z "$BINARY" ]; then
-            echo "::error::Binary not found in target release directory"
+            echo "::error::Binary not found in target/release"
             find target -type f -executable || true
             exit 1
           fi
