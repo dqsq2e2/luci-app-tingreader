@@ -298,23 +298,6 @@ jobs:
               --notes-file "$notes_file"
           fi
 
-      # ── Prune old backend releases (keep only latest) ───────────────────
-      - name: Prune old backend releases
-        env:
-          RELEASE_TAG: backend-v${{ env.VERSION }}
-        run: |
-          echo "Keeping $RELEASE_TAG, pruning other backend-v* releases..."
-          while IFS= read -r tag; do
-            [[ -n "$tag" && "$tag" != "$RELEASE_TAG" ]] || continue
-            [[ "$tag" == backend-v* ]] || continue
-            echo "Deleting release+tag: $tag"
-            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" \
-              --cleanup-tag --yes 2>/dev/null || true
-          done < <(
-            gh release list --repo "$GITHUB_REPOSITORY" --limit 100 \
-              --json tagName --jq '.[].tagName'
-          )
-
       # ── Trigger OpenWrt package build ───────────────────────────────────
       - name: Trigger OpenWrt package build
         uses: peter-evans/repository-dispatch@v3
@@ -322,3 +305,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           event-type: backend-published
           client-payload: '{"version": "${{ env.VERSION }}"}'
+
