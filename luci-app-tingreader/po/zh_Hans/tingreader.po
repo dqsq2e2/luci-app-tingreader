@@ -88,12 +88,34 @@ msgstr "存储库路径必须是绝对路径。"
 msgid "The repository path must not contain parent-directory components."
 msgstr "存储库路径不能包含上级目录组件。"
 
-msgid "Ting Reader is a self-hosted audiobook server and management tool.Default administrator login username: admin, password: admin123."
-msgstr "Ting Reader 是一款自托管的有声书服务与管理工具。默认管理员登录用户名 admin 密码 admin123。"
+msgid "Ting Reader is a self-hosted audiobook server and management tool. Default administrator login username: admin, password: admin123."
+msgstr "Ting Reader 是一款自托管的有声书服务与管理工具。默认管理员登录用户名 admin，密码 admin123。"
 
 msgid "GitHub"
 msgstr "GitHub"
 
 msgid "LuCI App"
 msgstr "LuCI 插件"
+
+msgid "Data directory"
+msgstr "数据目录"
+
+msgid "Directory used for database, plugins, and server runtime data."
+msgstr "用于存放数据库、插件以及服务运行数据的目录。"
+
+msgid "Log level"
+msgstr "日志等级"
+
+msgid "Debug"
+msgstr "调试 (Debug)"
+
+msgid "Info"
+msgstr "信息 (Info)"
+
+msgid "Warning"
+msgstr "警告 (Warning)"
+
+msgid "Error"
+msgstr "错误 (Error)"
+
 

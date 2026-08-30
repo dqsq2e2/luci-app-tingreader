@@ -63,3 +63,55 @@ msgstr ""
 
 msgid "View logs"
 msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Loading..."
+msgstr ""
+
+msgid "Collecting data..."
+msgstr ""
+
+msgid "No log entries were found."
+msgstr ""
+
+msgid "The repository path must be absolute."
+msgstr ""
+
+msgid "The repository path must not contain parent-directory components."
+msgstr ""
+
+msgid "Ting Reader is a self-hosted audiobook server and management tool. Default administrator login username: admin, password: admin123."
+msgstr ""
+
+msgid "GitHub"
+msgstr ""
+
+msgid "LuCI App"
+msgstr ""
+
+msgid "Data directory"
+msgstr ""
+
+msgid "Directory used for database, plugins, and server runtime data."
+msgstr ""
+
+msgid "Log level"
+msgstr ""
+
+msgid "Debug"
+msgstr ""
+
+msgid "Info"
+msgstr ""
+
+msgid "Warning"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+

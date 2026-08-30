@@ -246,7 +246,7 @@ return view.extend({
 		var info = data[0] || {};
 		var m, s, o;
 
-		var desc = _('Ting Reader is a self-hosted audiobook server and management tool.');
+		var desc = _('Ting Reader is a self-hosted audiobook server and management tool. Default administrator login username: admin, password: admin123.');
 		var headerNodes = [
 			E('p', { 'style': 'margin-bottom:6px;' }, [
 				desc,
@@ -256,7 +256,7 @@ return view.extend({
 					'target': '_blank',
 					'rel': 'noreferrer noopener',
 					'style': 'color:#1976d2;font-weight:bold;'
-				}, [ _('GitHub Project') ]),
+				}, [ _('GitHub') ]),
 				' | ',
 				E('a', {
 					'href': 'https://github.com/dqsq2e2/luci-app-tingreader',
@@ -297,6 +297,20 @@ return view.extend({
 		o.placeholder = '3000';
 		o.datatype = 'port';
 		o.rmempty = false;
+
+		o = s.option(form.Value, 'data_dir', _('Data directory'));
+		o.default = '/etc/tingreader';
+		o.placeholder = '/etc/tingreader';
+		o.description = _('Directory used for database, plugins, and server runtime data.');
+		o.validate = validateRepositoryPath;
+		o.rmempty = false;
+
+		o = s.option(form.ListValue, 'log_level', _('Log level'));
+		o.default = 'info';
+		o.value('debug', _('Debug'));
+		o.value('info', _('Info'));
+		o.value('warn', _('Warning'));
+		o.value('error', _('Error'));
 
 		s = m.section(form.GridSection, 'repository', _('Repositories'));
 		s.addremove = true;
