@@ -78,8 +78,13 @@ endef
 define Package/tingreader/install
 	$(INSTALL_DIR) $(1)/usr/lib/tingreader
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/ting-reader        $(1)/usr/lib/tingreader/ting-reader
-	$(CP)          $(PKG_BUILD_DIR)/static              $(1)/usr/lib/tingreader/
-	$(CP)          $(PKG_BUILD_DIR)/preinstalled-plugins $(1)/usr/lib/tingreader/
+	if [ -d $(PKG_BUILD_DIR)/static ]; then \
+		$(CP) $(PKG_BUILD_DIR)/static $(1)/usr/lib/tingreader/; \
+	fi
+	$(INSTALL_DIR) $(1)/usr/lib/tingreader/preinstalled-plugins
+	if [ -d $(PKG_BUILD_DIR)/preinstalled-plugins ]; then \
+		$(CP) $(PKG_BUILD_DIR)/preinstalled-plugins/. $(1)/usr/lib/tingreader/preinstalled-plugins/; \
+	fi
 
 	$(INSTALL_DIR) $(1)/usr/bin $(1)/usr/libexec $(1)/etc/init.d $(1)/etc/config
 	$(INSTALL_BIN) ./files/usr/bin/ting-reader $(1)/usr/bin/ting-reader

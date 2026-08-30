@@ -161,9 +161,11 @@ jobs:
           echo "Found binary: $BINARY"
           file "$BINARY"
 
-          mkdir -p _pkg
+          mkdir -p _pkg/preinstalled-plugins
           cp "$BINARY"   _pkg/ting-reader
           cp config.toml _pkg/config.toml
+          curl -fL --retry 3 "https://github.com/dqsq2e2/ting-reader-plugin-store/releases/download/v1.0.0/ting-reader-plugin-store-1.0.0.tr" \
+            -o _pkg/preinstalled-plugins/ting-reader-plugin-store.tr
 
           ARCHIVE="ting-reader-backend-linux-${{ matrix.arch_label }}-${VERSION}.tar.gz"
           tar -czf "$GITHUB_WORKSPACE/$ARCHIVE" -C _pkg .
