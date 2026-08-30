@@ -339,7 +339,7 @@ return view.extend({
 		o.value('error', _('Error'));
 
 		s = m.section(form.GridSection, 'repository', _('Local Repository Paths'),
-			_('Audiobook storage library directories. When no repository is configured, the data directory is used by default.'));
+			_('Configure local audiobook media storage directories. If none is configured on first start, the system automatically creates a default repository under the data directory.'));
 		s.addremove = true;
 		s.anonymous = true;
 		s.sortable = true;

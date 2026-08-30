@@ -109,7 +109,7 @@ msgstr ""
 msgid "Local Repository Paths"
 msgstr ""
 
-msgid "Audiobook storage library directories. When no repository is configured, the data directory is used by default."
+msgid "Configure local audiobook media storage directories. If none is configured on first start, the system automatically creates a default repository under the data directory."
 msgstr ""
 
 msgid "e.g. Audiobooks"
