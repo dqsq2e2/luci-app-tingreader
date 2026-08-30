@@ -291,7 +291,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CACHE_RETENTION_DAYS: '3'
           CACHE_KEEP_PER_GROUP: '2'
-          RUN_KEEP_PER_WORKFLOW: '3'
+          RUN_KEEP_PER_WORKFLOW: '5'
         run: bash .github/scripts/cleanup-actions-storage.sh
 
 

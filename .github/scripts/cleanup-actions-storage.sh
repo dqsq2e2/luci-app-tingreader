@@ -112,29 +112,23 @@ while IFS=$'\t' read -r cache_id key _ last_accessed created_at size; do
 done < "$temp_dir/caches-sorted.tsv"
 
 # ── Clean workflow runs ────────────────────────────────────────────────────
+# Keep the latest N runs per workflow regardless of conclusion (success/failure/cancelled)
+# so recent errors and logs can always be inspected.
 gh api --paginate \
 	"repos/$GITHUB_REPOSITORY/actions/runs?status=completed&per_page=100" \
 	--jq '.workflow_runs[] | [.id, .workflow_id, .name, .conclusion, .created_at] | @tsv' \
 	> "$temp_dir/runs.tsv"
 LC_ALL=C sort -t $'\t' -k5,5r "$temp_dir/runs.tsv" > "$temp_dir/runs-sorted.tsv"
 
-declare -A workflow_success_counts=()
+declare -A workflow_run_counts=()
 deleted_run_count=0
 while IFS=$'\t' read -r run_id workflow_id name conclusion created_at; do
 	[[ -n "$run_id" ]] || continue
 
-	# Delete any failed or cancelled runs immediately
-	if [[ "$conclusion" != "success" ]]; then
-		delete_run "$run_id" "$name" "$created_at (conclusion: $conclusion)"
-		deleted_run_count=$((deleted_run_count + 1))
-		continue
-	fi
-
-	# For successful runs, keep at most RUN_KEEP_PER_WORKFLOW
-	count=$(( ${workflow_success_counts[$workflow_id]:-0} + 1 ))
-	workflow_success_counts["$workflow_id"]="$count"
+	count=$(( ${workflow_run_counts[$workflow_id]:-0} + 1 ))
+	workflow_run_counts["$workflow_id"]="$count"
 	if (( count > RUN_KEEP_PER_WORKFLOW )); then
-		delete_run "$run_id" "$name" "$created_at (exceeds keep limit of $RUN_KEEP_PER_WORKFLOW)"
+		delete_run "$run_id" "$name" "$created_at ($conclusion, exceeds keep limit of $RUN_KEEP_PER_WORKFLOW)"
 		deleted_run_count=$((deleted_run_count + 1))
 	fi
 done < "$temp_dir/runs-sorted.tsv"
