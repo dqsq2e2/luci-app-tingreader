@@ -83,7 +83,7 @@ define Package/tingreader
   CATEGORY:=Multimedia
   TITLE:=Ting Reader audiobook server
   URL:=https://github.com/dqsq2e2/ting-reader
-  DEPENDS:=@(x86_64||aarch64||aarch64_generic||aarch64_cortex-a53||aarch64_cortex-a72||aarch64_cortex-a76) +ca-bundle
+  DEPENDS:=@(x86_64||aarch64) +ca-bundle
   PKG_FLAGS:=nonshared
 endef
 

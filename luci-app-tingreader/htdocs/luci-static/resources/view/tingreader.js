@@ -246,8 +246,34 @@ return view.extend({
 		var info = data[0] || {};
 		var m, s, o;
 
-		m = new form.Map('tingreader', _('Ting Reader'),
-			info.version ? _('Installed version: %s').format(info.version) : '');
+		var desc = _('Ting Reader is a self-hosted audiobook server and management tool.');
+		var headerNodes = [
+			E('p', { 'style': 'margin-bottom:6px;' }, [
+				desc,
+				' ',
+				E('a', {
+					'href': 'https://github.com/dqsq2e2/ting-reader',
+					'target': '_blank',
+					'rel': 'noreferrer noopener',
+					'style': 'color:#1976d2;font-weight:bold;'
+				}, [ _('GitHub Project') ]),
+				' | ',
+				E('a', {
+					'href': 'https://github.com/dqsq2e2/luci-app-tingreader',
+					'target': '_blank',
+					'rel': 'noreferrer noopener',
+					'style': 'color:#1976d2;font-weight:bold;'
+				}, [ _('LuCI App') ])
+			])
+		];
+
+		if (info.version) {
+			headerNodes.push(E('p', { 'style': 'margin:0;color:#666;' }, [
+				_('Installed version: %s').format(info.version)
+			]));
+		}
+
+		m = new form.Map('tingreader', _('Ting Reader'), E('div', { 'class': 'cbi-map-descr' }, headerNodes));
 
 		s = m.section(form.TypedSection);
 		s.anonymous = true;
