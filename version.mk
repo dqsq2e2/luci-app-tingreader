@@ -1,7 +1,5 @@
-# Backend binaries are built from source by .github/workflows/build-backend.yml
-# and published to this repository's Releases as statically-linked binaries.
-# Run scripts/update-version.sh <version> to update these values.
+# Auto-updated by build-backend.yml – do not edit manually.
 TINGREADER_VERSION:=1.5.9
-TINGREADER_BACKEND_AMD64_HASH:=skip
-TINGREADER_BACKEND_ARM64_HASH:=skip
+TINGREADER_BACKEND_AMD64_HASH:=cb231b8fba0ed64a3b7b79360fd0d10f6fda7452b390d7a7aadd81244e349fd5
+TINGREADER_BACKEND_ARM64_HASH:=d1495b7442f488db9b473ef037bc0eea8867abc3c7839e562124272e97b1c673
 TINGREADER_FRONTEND_HASH:=344400bf69311bff0638c48c8d71640e1a2e719aae185e398dea2e407e6125d0
