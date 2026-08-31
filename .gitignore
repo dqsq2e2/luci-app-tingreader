@@ -3,3 +3,6 @@
 /bin/
 /build_dir/
 /dl/
+*.lmo
+*.ipk
+*.apk
