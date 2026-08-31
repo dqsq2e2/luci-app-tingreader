@@ -18,6 +18,8 @@ name: Build ting-reader Backend
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
+  repository_dispatch:
+    types: [upstream-released]
   schedule:
     # Check for upstream releases every hour
     - cron: '0 * * * *'
