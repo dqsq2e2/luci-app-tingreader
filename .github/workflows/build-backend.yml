@@ -268,10 +268,10 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main || true
           git add version.mk
           git diff --cached --quiet && { echo "version.mk unchanged"; exit 0; }
           git commit -m "chore: bump ting-reader to v${VERSION} [skip ci]"
+          git pull --rebase origin main
           git push origin main
 
       # ── Publish backend release ─────────────────────────────────────────
