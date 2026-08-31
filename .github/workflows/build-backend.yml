@@ -18,6 +18,9 @@ name: Build ting-reader Backend
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
+  schedule:
+    # Check for upstream releases every hour
+    - cron: '0 * * * *'
   workflow_call:
   workflow_dispatch:
     inputs:
@@ -67,9 +70,15 @@ jobs:
           if [ -n "${{ inputs.ting_reader_tag }}" ]; then
             TAG="${{ inputs.ting_reader_tag }}"
           else
-            TAG="$(curl -fsSIL -o /dev/null -w '%{url_effective}' \
-              "https://github.com/${{ env.TING_READER_REPO }}/releases/latest")"
-            TAG="${TAG##*/}"
+            TAG="$(curl -fsSL -H "Accept: application/vnd.github+json" \
+              ${GH_TOKEN:+-H "Authorization: Bearer $GH_TOKEN"} \
+              "https://api.github.com/repos/${{ env.TING_READER_REPO }}/releases/latest" 2>/dev/null | jq -r '.tag_name // empty')"
+
+            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+              TAG="$(curl -fsSIL -o /dev/null -w '%{url_effective}' \
+                "https://github.com/${{ env.TING_READER_REPO }}/releases/latest" 2>/dev/null)"
+              TAG="${TAG##*/}"
+            fi
           fi
           VERSION="${TAG#v}"
           echo "Upstream: $TAG (version=$VERSION)"
