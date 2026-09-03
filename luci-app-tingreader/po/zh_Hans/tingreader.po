@@ -109,15 +109,21 @@ msgstr "数据库与数据保存目录"
 msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data."
 msgstr "修改此路径会创建一个全新实例；如需保留数据，请先停止 Ting Reader，再移动现有数据。"
 
-msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. You can select an auto-detected mount path or enter a custom absolute path."
-msgstr "修改此路径会创建一个全新实例；如需保留数据，请先停止 Ting Reader，再移动现有数据。可从下拉列表中选择自动探测的挂载路径，也可手动输入自定义绝对路径。"
+msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. You can directly edit this path or click the arrow to select an auto-detected disk."
+msgstr "修改此路径会创建一个全新实例；如需保留数据，请先停止 Ting Reader，再移动现有数据。可直接在此编辑输入路径，也可点击右侧箭头选择探测到的磁盘。"
+
+msgid "Select from detected storage"
+msgstr "选择自动探测到的存储路径"
+
+msgid "%s total, %s free (%s)"
+msgstr "总计 %s, 可用 %s (%s)"
 
 msgid "%s (%s total, %s free, %s)"
 msgstr "%s (总共 %s, 剩余 %s, %s)"
 
-
 msgid "%s (%s free)"
 msgstr "%s (剩余 %s)"
+
 
 msgid "Local Repository Authorized Paths"
 msgstr "本地存储库授权路径"

@@ -314,21 +314,102 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'data_dir', _('Database and data directory'),
-			_('Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. You can select an auto-detected mount path or enter a custom absolute path.'));
+			_('Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. You can directly edit this path or click the arrow to select an auto-detected disk.'));
 		o.default = defaultDataDir;
 		o.placeholder = defaultDataDir;
 		o.validate = validatePath;
 		o.rmempty = false;
 
-		if (!mounts.length) {
-			o.value('/etc/tingreader', '/etc/tingreader');
-		} else {
-			mounts.forEach(function(mount) {
-				var path = mount.path.replace(/\/$/, '') + '/tingreader';
-				var label = _('%s (%s total, %s free, %s)').format(path, formatBytes(mount.total), formatBytes(mount.free), mount.type || 'unknown');
-				o.value(path, label);
+		o.renderWidget = function(section_id, option_index, cfgvalue) {
+			var value = (cfgvalue != null) ? cfgvalue : this.default;
+
+			var widget = new ui.Textfield(value, {
+				id: this.cbid(section_id),
+				placeholder: this.placeholder,
+				validate: this.getValidator(section_id),
+				disabled: (this.readonly != null) ? this.readonly : this.map.readonly
 			});
-		}
+
+			var inputEl = widget.render();
+			inputEl.style.width = '100%';
+			inputEl.style.paddingRight = '32px';
+			inputEl.style.boxSizing = 'border-box';
+
+			var menu = E('ul', {
+				'class': 'cbi-dropdown-menu',
+				'style': 'display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:#fff;border:1px solid #ccc;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.18);list-style:none;margin:0;padding:4px 0;max-height:220px;overflow-y:auto;'
+			});
+
+			function toggleMenu(show) {
+				if (show === undefined)
+					show = menu.style.display === 'none';
+				menu.style.display = show ? 'block' : 'none';
+			}
+
+			var items = mounts.slice();
+			if (!items.length) {
+				items.push({ path: '/etc/tingreader', total: 0, free: 0, type: 'overlay' });
+			}
+
+			items.forEach(function(mount) {
+				var path = mount.path.replace(/\/$/, '') + '/tingreader';
+				var itemEl = E('li', {
+					'style': 'padding:8px 12px;cursor:pointer;font-size:13px;line-height:1.4;border-bottom:1px solid #f0f0f0;transition:background 0.2s;'
+				}, [
+					E('div', { 'style': 'font-weight:bold;color:#333;' }, [ path ]),
+					mount.total ? E('div', { 'style': 'font-size:11px;color:#888;' }, [
+						_('%s total, %s free (%s)').format(formatBytes(mount.total), formatBytes(mount.free), mount.type || '')
+					]) : ''
+				]);
+
+				itemEl.addEventListener('mouseenter', function() {
+					itemEl.style.background = 'rgba(0,122,255,0.1)';
+				});
+				itemEl.addEventListener('mouseleave', function() {
+					itemEl.style.background = '';
+				});
+
+				itemEl.addEventListener('mousedown', function(ev) {
+					ev.preventDefault();
+					inputEl.value = path;
+					inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+					inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+					toggleMenu(false);
+				});
+
+				menu.appendChild(itemEl);
+			});
+
+			var arrowBtn = E('button', {
+				'type': 'button',
+				'style': 'position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px 6px;color:#888;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:2;',
+				'title': _('Select from detected storage')
+			}, [ '▼' ]);
+
+			arrowBtn.addEventListener('click', function(ev) {
+				ev.preventDefault();
+				ev.stopPropagation();
+				toggleMenu();
+			});
+
+			var container = E('div', {
+				'class': 'control-group',
+				'style': 'position:relative;display:inline-block;width:100%;max-width:460px;vertical-align:middle;'
+			}, [
+				inputEl,
+				arrowBtn,
+				menu
+			]);
+
+			document.addEventListener('click', function(ev) {
+				if (!container.contains(ev.target))
+					toggleMenu(false);
+			});
+
+			return container;
+		};
+
+
 
 
 
