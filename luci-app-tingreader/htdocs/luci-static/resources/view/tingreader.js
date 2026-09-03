@@ -236,13 +236,13 @@ function renderStatusSection() {
 	return E('div', { 'class': 'cbi-section' }, [ statusNode ]);
 }
 
-function validateRepositoryPath(sectionId, value) {
+function validatePath(sectionId, value) {
 	if (value == null || value === '')
 		return true;
 	if (value.charAt(0) !== '/')
-		return _('The repository path must be absolute.');
+		return _('The path must be absolute.');
 	if (/(^|\/)\.\.(\/|$)/.test(value))
-		return _('The repository path must not contain parent-directory components.');
+		return _('The path must not contain parent-directory components.');
 
 	return true;
 }
@@ -313,9 +313,11 @@ return view.extend({
 		o.datatype = 'port';
 		o.rmempty = false;
 
-		o = s.option(form.ListValue, 'data_dir', _('Database and data directory'),
-			_('Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data.'));
+		o = s.option(form.Value, 'data_dir', _('Database and data directory'),
+			_('Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. You can select an auto-detected mount path or enter a custom absolute path.'));
 		o.default = defaultDataDir;
+		o.placeholder = defaultDataDir;
+		o.validate = validatePath;
 		o.rmempty = false;
 
 		if (!mounts.length) {
@@ -327,6 +329,7 @@ return view.extend({
 				o.value(path, label);
 			});
 		}
+
 
 
 		o = s.option(form.ListValue, 'log_level', _('Log level'));
@@ -357,7 +360,7 @@ return view.extend({
 		o.editable = true;
 
 		o = s.option(form.Value, 'path', _('Path'));
-		o.validate = validateRepositoryPath;
+		o.validate = validatePath;
 		o.editable = true;
 
 		return m.render();

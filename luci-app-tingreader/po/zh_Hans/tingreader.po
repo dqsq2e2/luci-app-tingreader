@@ -82,6 +82,12 @@ msgstr "正在获取状态..."
 msgid "No log entries were found."
 msgstr "暂无日志。"
 
+msgid "The path must be absolute."
+msgstr "路径必须是绝对路径。"
+
+msgid "The path must not contain parent-directory components."
+msgstr "路径不能包含上级目录组件。"
+
 msgid "The repository path must be absolute."
 msgstr "存储库路径必须是绝对路径。"
 
@@ -101,10 +107,14 @@ msgid "Database and data directory"
 msgstr "数据库与数据保存目录"
 
 msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data."
-msgstr "修改此路径会创建一个全新实例；如需保留数据，请先停止Ting Reader，再移动现有数据。"
+msgstr "修改此路径会创建一个全新实例；如需保留数据，请先停止 Ting Reader，再移动现有数据。"
+
+msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. You can select an auto-detected mount path or enter a custom absolute path."
+msgstr "修改此路径会创建一个全新实例；如需保留数据，请先停止 Ting Reader，再移动现有数据。可从下拉列表中选择自动探测的挂载路径，也可手动输入自定义绝对路径。"
 
 msgid "%s (%s total, %s free, %s)"
 msgstr "%s (总共 %s, 剩余 %s, %s)"
+
 
 msgid "%s (%s free)"
 msgstr "%s (剩余 %s)"

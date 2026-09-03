@@ -79,6 +79,12 @@ msgstr ""
 msgid "No log entries were found."
 msgstr ""
 
+msgid "The path must be absolute."
+msgstr ""
+
+msgid "The path must not contain parent-directory components."
+msgstr ""
+
 msgid "The repository path must be absolute."
 msgstr ""
 
@@ -100,8 +106,12 @@ msgstr ""
 msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data."
 msgstr ""
 
+msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. You can select an auto-detected mount path or enter a custom absolute path."
+msgstr ""
+
 msgid "%s (%s total, %s free, %s)"
 msgstr ""
+
 
 msgid "%s (%s free)"
 msgstr ""
