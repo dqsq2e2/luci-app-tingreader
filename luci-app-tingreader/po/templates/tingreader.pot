@@ -112,7 +112,10 @@ msgstr ""
 msgid "-- Select from detected disks to auto-fill --"
 msgstr ""
 
-msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. You can manually enter any custom path or choose from the auto-detected storage above."
+msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. Click the dropdown to choose an auto-detected disk or enter a custom absolute path."
+msgstr ""
+
+msgid "Enter a custom absolute path"
 msgstr ""
 
 msgid "%s (%s total, %s free, %s)"

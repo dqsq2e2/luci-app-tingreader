@@ -314,104 +314,55 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'data_dir', _('Database and data directory'),
-			_('Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. You can directly edit this path or click the arrow to select an auto-detected disk.'));
+			_('Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. Click the dropdown to choose an auto-detected disk or enter a custom absolute path.'));
 		o.default = defaultDataDir;
 		o.placeholder = defaultDataDir;
 		o.validate = validatePath;
 		o.rmempty = false;
 
+		var seenDataDirs = {};
+		var dataDirMounts = mounts.length ? mounts : [
+			{ path: '/etc', total: 0, free: 0, type: 'overlay' }
+		];
+
+		dataDirMounts.forEach(function(mount) {
+			var mountPath = String(mount.path || '').replace(/\/+$/, '');
+			if (!mountPath)
+				return;
+
+			var path = mountPath + '/tingreader';
+			if (seenDataDirs[path])
+				return;
+			seenDataDirs[path] = true;
+
+			var details = mount.total
+				? _('%s total, %s free (%s)').format(formatBytes(mount.total), formatBytes(mount.free), mount.type || '')
+				: '';
+			var label = E('div', { 'style': 'line-height:1.35;' }, [
+				E('strong', { 'style': 'display:block;' }, [ path ]),
+				details ? E('small', { 'class': 'hide-close', 'style': 'color:#888;' }, [ details ]) : null
+			]);
+
+			o.value(path, label);
+		});
+
+		// Use LuCI's native combobox so detected choices and custom input share
+		// one widget and the selected value is parsed by form.Map correctly.
 		o.renderWidget = function(section_id, option_index, cfgvalue) {
 			var value = (cfgvalue != null) ? cfgvalue : this.default;
-
-			var widget = new ui.Textfield(value, {
+			var widget = new ui.Combobox(value, this.transformChoices(), {
 				id: this.cbid(section_id),
-				placeholder: this.placeholder,
+				sort: this.keylist,
+				optional: this.optional || this.rmempty,
+				datatype: this.datatype,
+				select_placeholder: this.placeholder,
+				custom_placeholder: _('Enter a custom absolute path'),
 				validate: this.getValidator(section_id),
 				disabled: (this.readonly != null) ? this.readonly : this.map.readonly
 			});
 
-			var inputEl = widget.render();
-			inputEl.style.width = '100%';
-			inputEl.style.paddingRight = '32px';
-			inputEl.style.boxSizing = 'border-box';
-
-			var menu = E('ul', {
-				'class': 'cbi-dropdown-menu',
-				'style': 'display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:#fff;border:1px solid #ccc;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.18);list-style:none;margin:0;padding:4px 0;max-height:220px;overflow-y:auto;'
-			});
-
-			function toggleMenu(show) {
-				if (show === undefined)
-					show = menu.style.display === 'none';
-				menu.style.display = show ? 'block' : 'none';
-			}
-
-			var items = mounts.slice();
-			if (!items.length) {
-				items.push({ path: '/etc/tingreader', total: 0, free: 0, type: 'overlay' });
-			}
-
-			items.forEach(function(mount) {
-				var path = mount.path.replace(/\/$/, '') + '/tingreader';
-				var itemEl = E('li', {
-					'style': 'padding:8px 12px;cursor:pointer;font-size:13px;line-height:1.4;border-bottom:1px solid #f0f0f0;transition:background 0.2s;'
-				}, [
-					E('div', { 'style': 'font-weight:bold;color:#333;' }, [ path ]),
-					mount.total ? E('div', { 'style': 'font-size:11px;color:#888;' }, [
-						_('%s total, %s free (%s)').format(formatBytes(mount.total), formatBytes(mount.free), mount.type || '')
-					]) : ''
-				]);
-
-				itemEl.addEventListener('mouseenter', function() {
-					itemEl.style.background = 'rgba(0,122,255,0.1)';
-				});
-				itemEl.addEventListener('mouseleave', function() {
-					itemEl.style.background = '';
-				});
-
-				itemEl.addEventListener('mousedown', function(ev) {
-					ev.preventDefault();
-					inputEl.value = path;
-					inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-					inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-					toggleMenu(false);
-				});
-
-				menu.appendChild(itemEl);
-			});
-
-			var arrowBtn = E('button', {
-				'type': 'button',
-				'style': 'position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px 6px;color:#888;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:2;',
-				'title': _('Select from detected storage')
-			}, [ '▼' ]);
-
-			arrowBtn.addEventListener('click', function(ev) {
-				ev.preventDefault();
-				ev.stopPropagation();
-				toggleMenu();
-			});
-
-			var container = E('div', {
-				'class': 'control-group',
-				'style': 'position:relative;display:inline-block;width:100%;max-width:460px;vertical-align:middle;'
-			}, [
-				inputEl,
-				arrowBtn,
-				menu
-			]);
-
-			document.addEventListener('click', function(ev) {
-				if (!container.contains(ev.target))
-					toggleMenu(false);
-			});
-
-			return container;
+			return widget.render();
 		};
-
-
-
-
 
 		o = s.option(form.ListValue, 'log_level', _('Log level'));
 		o.default = 'info';
