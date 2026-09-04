@@ -103,6 +103,9 @@ msgstr ""
 msgid "Database and data directory"
 msgstr ""
 
+msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data."
+msgstr ""
+
 msgid "Enter a custom absolute path"
 msgstr ""
 
