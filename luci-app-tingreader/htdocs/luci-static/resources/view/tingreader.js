@@ -345,32 +345,21 @@ return view.extend({
 			o.value(path, label);
 		});
 
-		// Use LuCI's native combobox so detected choices and custom input share
+		// Use LuCI's native dropdown so detected choices and custom input share
 		// one widget and the selected value is parsed by form.Map correctly.
 		o.renderWidget = function(section_id, option_index, cfgvalue) {
 			var value = (cfgvalue != null) ? cfgvalue : this.default;
-			var widget = new ui.Combobox(value, this.transformChoices(), {
+			var widget = new ui.Dropdown(value, this.transformChoices(), {
 				id: this.cbid(section_id),
 				sort: this.keylist,
-				optional: this.optional || this.rmempty,
+				optional: false,
+				create: true,
 				datatype: this.datatype,
 				select_placeholder: this.placeholder,
 				custom_placeholder: _('Enter a custom absolute path'),
 				validate: this.getValidator(section_id),
 				disabled: (this.readonly != null) ? this.readonly : this.map.readonly
 			});
-			var nativeOpenDropdown = widget.openDropdown;
-
-			// LuCI duplicates the selected item into a preview list while opening
-			// a single-value dropdown. Hide that visual clone for this field so
-			// each detected path appears only once in the menu.
-			widget.openDropdown = function(node) {
-				nativeOpenDropdown.call(this, node);
-
-				var preview = node.querySelector('ul.preview');
-				if (preview)
-					preview.style.setProperty('display', 'none', 'important');
-			};
 
 			return widget.render();
 		};
