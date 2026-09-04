@@ -313,8 +313,7 @@ return view.extend({
 		o.datatype = 'port';
 		o.rmempty = false;
 
-		o = s.option(form.Value, 'data_dir', _('Database and data directory'),
-			_('Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. Click the dropdown to choose an auto-detected disk or enter a custom absolute path.'));
+		o = s.option(form.Value, 'data_dir', _('Database and data directory'));
 		o.default = defaultDataDir;
 		o.placeholder = defaultDataDir;
 		o.validate = validatePath;
@@ -360,6 +359,18 @@ return view.extend({
 				validate: this.getValidator(section_id),
 				disabled: (this.readonly != null) ? this.readonly : this.map.readonly
 			});
+			var nativeOpenDropdown = widget.openDropdown;
+
+			// LuCI duplicates the selected item into a preview list while opening
+			// a single-value dropdown. Hide that visual clone for this field so
+			// each detected path appears only once in the menu.
+			widget.openDropdown = function(node) {
+				nativeOpenDropdown.call(this, node);
+
+				var preview = node.querySelector('ul.preview');
+				if (preview)
+					preview.style.setProperty('display', 'none', 'important');
+			};
 
 			return widget.render();
 		};
