@@ -103,18 +103,6 @@ msgstr ""
 msgid "Database and data directory"
 msgstr ""
 
-msgid "Auto-detected storage selection"
-msgstr ""
-
-msgid "Select an automatically detected storage path to quickly fill into the directory field below."
-msgstr ""
-
-msgid "-- Select from detected disks to auto-fill --"
-msgstr ""
-
-msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. Click the dropdown to choose an auto-detected disk or enter a custom absolute path."
-msgstr ""
-
 msgid "Enter a custom absolute path"
 msgstr ""
 

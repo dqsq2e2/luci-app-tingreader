@@ -106,17 +106,8 @@ msgstr "LuCI 插件"
 msgid "Database and data directory"
 msgstr "数据库与数据保存目录"
 
-msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data."
-msgstr "修改此路径会创建一个全新实例；如需保留数据，请先停止 Ting Reader，再移动现有数据。"
-
-msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data. Click the dropdown to choose an auto-detected disk or enter a custom absolute path."
-msgstr "修改此路径会创建一个全新实例；如需保留数据，请先停止 Ting Reader，再移动现有数据。点击下拉菜单选择自动探测到的磁盘，或输入自定义绝对路径。"
-
 msgid "Enter a custom absolute path"
 msgstr "输入自定义绝对路径"
-
-msgid "Select from detected storage"
-msgstr "选择自动探测到的存储路径"
 
 msgid "%s total, %s free (%s)"
 msgstr "总计 %s, 可用 %s (%s)"
