@@ -106,6 +106,9 @@ msgstr "LuCI 插件"
 msgid "Database and data directory"
 msgstr "数据库与数据保存目录"
 
+msgid "Changing this path creates a new instance; to keep your data, stop Ting Reader first and then move the existing data."
+msgstr "修改此路径会创建一个全新实例；如需保留数据，请先停止 Ting Reader，再移动现有数据库。"
+
 msgid "Enter a custom absolute path"
 msgstr "输入自定义绝对路径"
 
