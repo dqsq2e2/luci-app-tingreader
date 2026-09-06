@@ -338,10 +338,14 @@ return view.extend({
 			var details = mount.total
 				? _('%s total, %s free (%s)').format(formatBytes(mount.total), formatBytes(mount.free), mount.type || '')
 				: '';
-			var label = E('div', { 'style': 'line-height:1.35;' }, [
-				E('strong', { 'style': 'display:block;' }, [ path ]),
-				details ? E('small', { 'class': 'hide-close', 'style': 'color:#888;' }, [ details ]) : null
-			]);
+			var labelNodes = [
+				E('strong', { 'style': 'display:block;' }, [ path ])
+			];
+
+			if (details)
+				labelNodes.push(E('small', { 'class': 'hide-close', 'style': 'color:#888;' }, [ details ]));
+
+			var label = E('div', { 'style': 'line-height:1.35;' }, labelNodes);
 
 			o.value(path, label);
 		});
