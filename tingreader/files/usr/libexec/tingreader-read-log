@@ -22,12 +22,32 @@ emit_logs() {
 	done
 }
 
+# rpcd-mod-file limits file.exec stdout/stderr to 256 KiB. Keep the newest
+# complete log lines within a smaller bound so LuCI can always display them.
+limit_output() {
+	awk -v max_bytes=240000 'BEGIN { first = 1 }
+	{
+		line = $0; size = length(line) + 1;
+		if (size > max_bytes) {
+			line = substr(line, length(line) - max_bytes + 2);
+			size = length(line) + 1;
+		}
+		lines[NR] = line; sizes[NR] = size; total += size;
+		while (total > max_bytes && first <= NR)
+			total -= sizes[first++];
+	}
+	END {
+		for (i = first; i <= NR; i++)
+			print lines[i];
+	}'
+}
+
 case "$KIND" in
 	system)
-		emit_logs | tail -n 4000
+		emit_logs | tail -n 4000 | limit_output
 		;;
 	plugin|plugins)
-		emit_logs | grep -Ei '"target":"[^"]*(plugin|scraper)|"message_key":"[^"]*(plugin|scraper)|"threadName":"js-plugin-' | tail -n 4000
+		emit_logs | grep -Ei '"target":"[^"]*(plugin|scraper)|"message_key":"[^"]*(plugin|scraper)|"threadName":"js-plugin-' | tail -n 4000 | limit_output
 		;;
 	*)
 		exit 2
