@@ -2,7 +2,8 @@
 
 'use strict';
 
-import { access, glob, readfile, statvfs } from 'fs';
+import { access, glob, readfile } from 'fs';
+import * as fs from 'fs';
 import { process_list } from 'luci.sys';
 
 const wrapper = '/usr/bin/ting-reader';
@@ -53,15 +54,15 @@ function storage_mounts() {
 		    ignoredMounts[path] || match(',' + fields[3] + ',', /,ro,/))
 			continue;
 
-		let stats = statvfs(path);
-		if (!stats || stats.freesize < 104857600 || !access(path, 'w'))
+		let stats = fs.statvfs ? fs.statvfs(path) : null;
+		if ((stats && stats.freesize < 104857600) || !access(path, 'w'))
 			continue;
 
 		push(raw_mounts, {
 			path: path,
 			type: fields[2],
-			total: stats.totalsize,
-			free: stats.freesize
+			total: stats ? stats.totalsize : 0,
+			free: stats ? stats.freesize : 0
 		});
 	}
 
