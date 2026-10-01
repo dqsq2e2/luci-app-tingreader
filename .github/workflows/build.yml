@@ -1,298 +1,100 @@
 name: Build OpenWrt Ting Reader
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Trigger sources:
-#  1. repository_dispatch "backend-published" – fired automatically by
-#     build-backend.yml after it publishes static binaries and updates version.mk.
-#  2. workflow_dispatch    – manual run, optionally resolves a new upstream version.
-#  3. push to main        – on changes to package files (for CI validation).
-# ─────────────────────────────────────────────────────────────────────────────
-
 on:
-  repository_dispatch:
-    types: [backend-published]
-
+  push:
+    branches: [main]
+    paths:
+      - 'luci-app-tingreader/**'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
-      tingreader_version:
-        description: 'ting-reader version to package (e.g. 1.6.0 or "latest")'
-        required: true
-        default: latest
       release_tag:
-        description: 'Optional tag to publish the OpenWrt packages as a GitHub Release'
+        description: 'Release tag, e.g. luci-v2.0.0-r1. Blank builds artifacts only.'
         required: false
         default: ''
       release_notes:
-        description: 'Optional release notes appended to the published release'
+        description: 'Additional Release notes'
         required: false
         default: ''
 
 permissions:
-  actions: write
   contents: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  TZ: Asia/Shanghai
+  group: luci-packages-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build ${{ matrix.arch }}-${{ matrix.sdk }}
+    name: LuCI all (${{ matrix.format }})
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
         include:
-          # ── OpenWrt 24.10.x – IPK (opkg) ──────────────────────────────────
-          - { arch: x86_64,            sdk: 24.10.8, format: ipk }
-          - { arch: aarch64_generic,   sdk: 24.10.8, format: ipk }
-          - { arch: aarch64_cortex-a53, sdk: 24.10.8, format: ipk }
-          - { arch: aarch64_cortex-a72, sdk: 24.10.8, format: ipk }
-          - { arch: aarch64_cortex-a76, sdk: 24.10.8, format: ipk }
-          # ── OpenWrt 25.12.x – APK (apk-tools) ─────────────────────────────
-          - { arch: x86_64,            sdk: 25.12.5, format: apk }
-          - { arch: aarch64_generic,   sdk: 25.12.5, format: apk }
-          - { arch: aarch64_cortex-a53, sdk: 25.12.5, format: apk }
-          - { arch: aarch64_cortex-a72, sdk: 25.12.5, format: apk }
-          - { arch: aarch64_cortex-a76, sdk: 25.12.5, format: apk }
-
+          - { sdk: 24.10.8, format: ipk }
+          - { sdk: 25.12.5, format: apk }
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # When triggered by backend-published, version.mk was already committed
-      # by build-backend.yml. Pull the latest commit to get it.
-      - name: Pull latest version.mk (if triggered by backend-published)
-        if: github.event_name == 'repository_dispatch'
-        run: git pull --ff-only
-
-      # When triggered manually with a version, update version.mk first.
-      - name: Resolve ting-reader release
-        if: github.event_name == 'workflow_dispatch'
-        run: bash ./scripts/update-version.sh '${{ inputs.tingreader_version }}'
-
-      - name: Read package version
-        id: version
-        shell: bash
-        run: |
-          version="$(awk -F':=' '/^TINGREADER_VERSION:=/{print $2}' version.mk)"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Building ting-reader $version for ${{ matrix.arch }}-${{ matrix.sdk }}"
-
-      # ── Cache OpenWrt SDK and downloaded source archives ──────────────────
-      # Key includes the version so the dl/ directory (which holds backend and
-      # frontend tarballs) is invalidated when the version changes.
-      - name: Cache OpenWrt SDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            /opt/openwrt-sdk-${{ matrix.arch }}-${{ matrix.sdk }}
-          key: openwrt-sdk-${{ matrix.arch }}-${{ matrix.sdk }}
-          restore-keys: |
-            openwrt-sdk-${{ matrix.arch }}-${{ matrix.sdk }}
-
-      - name: Cache downloaded packages (dl/)
-        uses: actions/cache@v4
-        with:
-          path: dl
-          key: tingreader-dl-${{ matrix.arch }}-${{ steps.version.outputs.version }}
-          restore-keys: |
-            tingreader-dl-${{ matrix.arch }}-
-
-      - name: Pre-download source archives
-        shell: bash
-        run: |
-          mkdir -p dl
-          VERSION="${{ steps.version.outputs.version }}"
-          if [[ "${{ matrix.arch }}" == x86_64* ]]; then
-            BACKEND_ARCH="amd64"
-          else
-            BACKEND_ARCH="arm64"
-          fi
-          BACKEND_FILE="ting-reader-backend-linux-${BACKEND_ARCH}-${VERSION}.tar.gz"
-          FRONTEND_FILE="ting-reader-frontend-${VERSION}.tar.gz"
-
-          if [ ! -s "dl/${BACKEND_FILE}" ]; then
-            echo "Pre-fetching ${BACKEND_FILE}..."
-            curl -fL --retry 5 --retry-delay 2 \
-              "https://github.com/dqsq2e2/luci-app-tingreader/releases/download/backend-v${VERSION}/${BACKEND_FILE}" \
-              -o "dl/${BACKEND_FILE}"
-          fi
-
-          if [ ! -s "dl/${FRONTEND_FILE}" ]; then
-            echo "Pre-fetching ${FRONTEND_FILE}..."
-            curl -fL --retry 5 --retry-delay 2 \
-              "https://github.com/dqsq2e2/ting-reader/releases/download/v${VERSION}/${FRONTEND_FILE}" \
-              -o "dl/${FRONTEND_FILE}"
-          fi
-
-          echo "Verified pre-downloaded source archives in dl/:"
-          ls -lh dl/
-
-      # ── Build ─────────────────────────────────────────────────────────────
-      - name: Build packages
+      - uses: actions/checkout@v4
+      - name: Build architecture-independent LuCI and translations
         uses: openwrt/gh-action-sdk@main
         env:
-          ARCH:             ${{ matrix.arch }}-${{ matrix.sdk }}
-          FEEDNAME:         tingreader_ci
-          # luci-i18n-tingreader-zh-cn is generated as a side-effect of building
-          # luci-app-tingreader and does not have its own download target.
-          PACKAGES:         tingreader luci-app-tingreader
+          ARCH: x86_64-${{ matrix.sdk }}
+          FEEDNAME: tingreader_ci
+          PACKAGES: luci-app-tingreader
           NO_REFRESH_CHECK: 1
-          NO_SHFMT_CHECK:   1
-          MAKEFLAGS:        -j$(nproc)
-          V:                s
-
-      # ── Collect artifacts ─────────────────────────────────────────────────
-      - name: Prepare artifact directory
-        shell: bash
+          NO_SHFMT_CHECK: 1
+          V: s
+      - name: Collect packages
+        env:
+          FORMAT: ${{ matrix.format }}
         run: |
-          output_dir="artifacts/${{ matrix.arch }}-${{ matrix.sdk }}"
-          mkdir -p "$output_dir"
-          find bin/ -type f \
-            \( -name 'tingreader*.'${{ matrix.format }} -o -name 'luci-*tingreader*.'${{ matrix.format }} \) \
-            -exec cp -v {} "$output_dir/" \;
-          cp README.md "$output_dir/README.md"
-          
-          # Fail loudly if tingreader or luci-app-tingreader packages are missing!
-          echo "Verifying generated packages in $output_dir..."
-          ls -la "$output_dir"
-          test -n "$(find "$output_dir" -maxdepth 1 -type f -name "tingreader*.${{ matrix.format }}" -print -quit)"
-          test -n "$(find "$output_dir" -maxdepth 1 -type f -name "luci-app-tingreader*.${{ matrix.format }}" -print -quit)"
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+          mkdir -p artifacts
+          find bin/ -type f -name "luci-*tingreader*.$FORMAT" -exec cp {} artifacts/ \;
+          test -n "$(find artifacts -name "luci-app-tingreader*.$FORMAT" -print -quit)"
+          test -n "$(find artifacts -name "luci-i18n-tingreader-zh-cn*.$FORMAT" -print -quit)"
+          for package in artifacts/*; do
+            case "$package" in *_all.ipk|*.apk) ;; *) echo "Unexpected package: $package"; exit 1 ;; esac
+          done
+      - uses: actions/upload-artifact@v4
         with:
-          name: TingReader-${{ steps.version.outputs.version }}-${{ matrix.arch }}-${{ matrix.sdk }}
-          path: artifacts/${{ matrix.arch }}-${{ matrix.sdk }}/*
+          name: LuCI-all-${{ matrix.format }}
+          path: artifacts/*
           if-no-files-found: error
           retention-days: 3
 
-  # ── Publish GitHub Release ────────────────────────────────────────────────
   release:
-    name: Publish release
     needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
     runs-on: ubuntu-latest
-    # Publish when triggered manually or automatically by backend-published
-    if: >-
-      always() && !cancelled() &&
-      ((github.event_name == 'workflow_dispatch' && inputs.release_tag != '') ||
-      github.event_name == 'repository_dispatch')
-
     steps:
-      - name: Checkout (for README)
-        uses: actions/checkout@v4
-
-      - name: Pull latest version.mk
-        if: github.event_name == 'repository_dispatch'
-        run: git pull --ff-only
-
-      - name: Read version
-        id: version
-        shell: bash
-        run: |
-          version="$(awk -F':=' '/^TINGREADER_VERSION:=/{print $2}' version.mk)"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Determine release tag
-        id: tag
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            echo "tag=v${{ steps.version.outputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=${{ inputs.release_tag }}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          path: artifacts
-
-      - name: Assemble release archives
-        shell: bash
-        run: |
-          mkdir -p release
-          VERSION="${{ steps.version.outputs.version }}"
-
-          for sdk in 24.10.8 25.12.5; do
-            # ── ARM64: combine all cortex sub-targets into one zip ───────────
-            arm64_dir="$RUNNER_TEMP/TingReader-${VERSION}-arm64-${sdk}"
-            mkdir -p "$arm64_dir"
-            cp README.md "$arm64_dir/README.md"
-
-            for arch in aarch64_generic aarch64_cortex-a53 \
-                        aarch64_cortex-a72 aarch64_cortex-a76; do
-              src="artifacts/TingReader-${VERSION}-${arch}-${sdk}"
-              test -d "$src" || continue
-              mkdir -p "$arm64_dir/$arch"
-              find "$src" -maxdepth 1 -type f ! -name 'README.md' \
-                -exec cp -v {} "$arm64_dir/$arch/" \;
-            done
-
-            (cd "$arm64_dir" && zip -9 -r \
-              "$GITHUB_WORKSPACE/release/TingReader-${VERSION}-arm64-${sdk}.zip" .)
-
-            # ── x86_64 ───────────────────────────────────────────────────────
-            x86_src="artifacts/TingReader-${VERSION}-x86_64-${sdk}"
-            if [ -d "$x86_src" ]; then
-              (cd "$x86_src" && zip -9 -r \
-                "$GITHUB_WORKSPACE/release/TingReader-${VERSION}-x86_64-${sdk}.zip" .)
-            fi
-          done
-
-      - name: Publish GitHub release
+          pattern: LuCI-all-*
+          path: release
+          merge-multiple: true
+      - name: Publish LuCI packages
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.tag.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
-          NOTES: ${{ inputs.release_notes }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          EXTRA_NOTES: ${{ inputs.release_notes }}
         run: |
-          BODY=$(cat <<EOF
-          Ting Reader OpenWrt packages for version **${VERSION}**.
-
-          Backend binaries are compiled from source and statically linked — no private glibc required.
-
-          | Archive | SDK | Format | Architectures |
-          |---------|-----|--------|---------------|
-          | \`TingReader-${VERSION}-arm64-24.10.8.zip\` | 24.10.8 | IPK (opkg) | generic / a53 / a72 / a76 |
-          | \`TingReader-${VERSION}-arm64-25.12.5.zip\` | 25.12.5 | APK | generic / a53 / a72 / a76 |
-          | \`TingReader-${VERSION}-x86_64-24.10.8.zip\` | 24.10.8 | IPK (opkg) | x86_64 |
-          | \`TingReader-${VERSION}-x86_64-25.12.5.zip\` | 25.12.5 | APK | x86_64 |
-
-          ARM64 archives contain \`aarch64_generic\`, \`aarch64_cortex-a53\`, \`aarch64_cortex-a72\`, and \`aarch64_cortex-a76\` subdirectories.
-          Use the one matching \`apk --print-arch\` or \`opkg print-architecture\`.
-
-          Install \`tingreader\`, \`luci-app-tingreader\`, and optionally \`luci-i18n-tingreader-zh-cn\` from the same archive.
-
-          ${NOTES}
+          [[ "$RELEASE_TAG" =~ ^luci-v[0-9]+\.[0-9]+\.[0-9]+-r[0-9]+$ ]]
+          notes_file="$RUNNER_TEMP/luci-notes.md"
+          cat > "$notes_file" <<'EOF'
+          只需安装 luci-app-tingreader 和可选中文语言包。
+          IPK/APK 均为架构无关包；根据系统包管理器选择格式。
+          安装后进入「服务 → Ting Reader → 程序管理」，下载前后端，再启用服务。
+          下载支持 GitHub 直连、自动加速和自定义 HTTPS 加速地址。
+          后端支持 x86_64 与 ARM64，程序可安装到外置磁盘。
           EOF
-          )
-
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists, updating notes and assets..."
-            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "Ting Reader $VERSION" --notes "$BODY"
-            gh release upload "$TAG" release/*.zip --repo "$GITHUB_REPOSITORY" --clobber
+          printf '\n%s\n' "$EXTRA_NOTES" >> "$notes_file"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release/* --clobber
+            gh release edit "$RELEASE_TAG" --title "LuCI $RELEASE_TAG" --notes-file "$notes_file" --latest
           else
-            gh release create "$TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "Ting Reader $VERSION" \
-              --notes "$BODY" \
-              release/*.zip
+            gh release create "$RELEASE_TAG" release/* --target "$GITHUB_SHA" \
+              --title "LuCI $RELEASE_TAG" --notes-file "$notes_file" --latest
           fi
-
-      # ── Auto Cleanup CI History & Old Runs ────────────────────────────────
-      - name: Auto Cleanup CI runs and caches
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CACHE_RETENTION_DAYS: '3'
-          CACHE_KEEP_PER_GROUP: '2'
-          RUN_KEEP_PER_WORKFLOW: '5'
-        run: bash .github/scripts/cleanup-actions-storage.sh
-
-

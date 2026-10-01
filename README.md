@@ -1,117 +1,70 @@
 # luci-app-tingreader
 
-Ting Reader（听悦）的官方 OpenWrt 软件包项目，包含服务端核心包、现代 LuCI 管理界面，以及自动化 IPK/APK GitHub Actions 构建流程。
+在 OpenWrt LuCI 中安装和管理 Ting Reader（听悦）。提供服务控制、程序下载、运行状态、日志和存储目录设置。
 
----
+## 安装
 
-## 🌟 核心特性
-
-- **现代 LuCI 界面**：基于 JavaScript / ucode 开发，提供平滑美观的状态展示与操作体验。
-- **实时监控与控制**：实时展示服务运行状态、PID、CPU 与内存占用；支持「打开 Ting Reader」「重启服务」「查看实时日志」。
-- **双标签日志查看器**：支持在弹窗中无刷新查看「系统运行日志」与「应用核心日志（自动轮转）」，方便排障。
-- **降权安全运行**：后端主程序以普通非 root 系统用户 `tingreader:tingreader`（UID `32771`）运行，保障路由器系统安全。
-- **FPK 规范数据架构**：遵循与飞牛 FPK 一致的规范目录设计，主数据目录下的 `data/` 子目录集中管理数据库（WAL 模式）、插件、日志与转码缓存，默认媒体位于 `storage/`。
-- **智能磁盘识别与去重**：数据目录下拉菜单自动识别外接 NVMe / SATA 硬盘物理根挂载点并过滤冗余子挂载，防止误写满路由器内置 Flash 闪存。
-- **本地存储库路径授权**：支持添加多个外置磁盘路径，服务启动时自动赋予读写权限，无需手动在后台执行 `chown`/`chmod`。
-- **守护进程自动管理**：使用 OpenWrt procd 服务守护，配置变更后自动平滑重载。
-
----
-
-## 📦 软件包结构与架构支持
-
-### 软件包组成
-| 软件包 | 说明 |
-| :--- | :--- |
-| **`tingreader`** | 服务端静态二进制、前端静态资源、预置插件、procd 守护脚本与 UCI 配置 |
-| **`luci-app-tingreader`** | LuCI 管理界面、RPC 接口与访问控制 |
-| **`luci-i18n-tingreader-zh-cn`** | 简体中文语言包 |
-
-### 支持的系统与硬件架构
-- **OpenWrt 版本**：
-  - **OpenWrt 25.12.x+**：基于 APK 包管理器，提供标准 `.apk` 软件包。
-  - **OpenWrt 24.10.x**：基于 opkg 包管理器，提供标准 `.ipk` 软件包。
-- **硬件架构覆盖**：
-  - `x86_64`
-  - `aarch64_generic` / `aarch64_cortex-a53` / `aarch64_cortex-a72` / `aarch64_cortex-a76`
-
-> 后端采用纯静态链接构建（musl / 静态 OpenSSL），无需携带私有 glibc，原生适配所有标准 OpenWrt 系统。
-
----
-
-## 🚀 安装与使用
-
-### 1. 手动安装下载的软件包
-
-从 [Releases 发布页面](https://github.com/dqsq2e2/luci-app-tingreader/releases) 下载对应架构与系统版本的压缩包，解压后上传并安装：
+从 [Releases](https://github.com/dqsq2e2/luci-app-tingreader/releases/latest) 下载 `luci-app-tingreader`，需要中文时同时下载 `luci-i18n-tingreader-zh-cn`。软件包架构为 `all`，只需根据系统选择 IPK 或 APK。
 
 ```sh
-# opkg (OpenWrt 24.10 / IPK)
-opkg install ./tingreader_*.ipk
-opkg install ./luci-app-tingreader_*.ipk
-opkg install ./luci-i18n-tingreader-zh-cn_*.ipk
+# 使用 opkg 的系统
+opkg update
+opkg install ./luci-app-tingreader_*_all.ipk
+opkg install ./luci-i18n-tingreader-zh-cn_*_all.ipk
 
-# apk (OpenWrt 25.12+ / APK)
-apk add --allow-untrusted ./tingreader_*.apk
-apk add --allow-untrusted ./luci-app-tingreader_*.apk
-apk add --allow-untrusted ./luci-i18n-tingreader-zh-cn_*.apk
+# 使用 apk 的系统
+apk update
+apk add --allow-untrusted ./luci-app-tingreader-*.apk
+apk add --allow-untrusted ./luci-i18n-tingreader-zh-cn-*.apk
 ```
 
-### 2. 配置与启动
+安装后刷新 LuCI，进入「服务 → Ting Reader」。
 
-1. 进入 LuCI Web 界面「服务 -> Ting Reader」。
-2. 勾选「启用」，设置监听端口（默认 `3000`）。
-3. **选择数据目录**：建议在下拉菜单中选择外挂的物理硬盘根路径（例如 `/mnt/nvme/tingreader`）。
-4. **配置本地存储库授权路径**：
-   - 首次启动若未配置，系统会自动将默认媒体存储目录（`$data_dir/storage`）添加至授权列表。
-   - 若你的有声书存放在其他外接硬盘目录（如 `/mnt/sda1/audiobooks`），在列表中点击「添加」填入该路径即可。
-5. 点击「保存并应用」，即可通过 `http://路由器IP:3000` 开始畅享听书！
+## 下载程序
 
----
+1. 在「程序管理」中选择版本，`latest` 表示最新已发布版本，也可以填写具体版本号。
+2. 选择程序目录，建议使用允许执行程序的外置磁盘，例如 `/mnt/sda1/tingreader/program`。
+3. 选择下载源：GitHub 直连、自动加速或指定加速节点。也可填写自定义 HTTPS 加速地址。
+4. 点击「下载 / 更新」。前后端按同一版本下载，页面显示进度，下载过程中可取消。
+5. 下载完成后，在「设置」中选择数据目录、勾选启用，再「保存并应用」。
 
-## 🛠️ 作为 feeds 源码编译
+自动加速依次尝试预设节点，失败后尝试 GitHub 直连。自定义节点使用 `https://加速站/https://github.com/...` 形式转发 Release 下载。
 
-在 OpenWrt 源码根目录的 `feeds.conf.default` 中添加：
+后端目前支持 **x86_64 和 ARM64（aarch64）**。LuCI 的 `all` 软件包与 CPU 架构无关，实际程序按设备架构下载。支持提供 `rpcd-mod-ucode` 的 OpenWrt；发布流程分别提供 IPK 和 APK。
+
+后端程序包含匹配的运行库、FFmpeg、FFprobe 和预装插件商店。后端从本仓库的 `backend-v*` Release 下载，Web 前端从 Ting Reader 主项目的同版本 Release 下载。
+
+## 数据和服务
+
+- 默认端口 `3000`，管理员初始账号 `admin`，密码 `admin123`。
+- 数据目录可选择外置磁盘或填写绝对路径。
+- 数据目录的 `data/` 保存数据库、插件、日志和临时文件；默认媒体目录为 `storage/`。
+- 可添加多个本地存储库授权路径；首次启动未配置时自动添加默认媒体目录。
+- 页面提供启动、重启、打开应用和系统/插件日志查看。
+
+更新程序时先下载、校验并检查运行库，再切换程序目录。下载或校验失败保留当前程序；安装失败恢复原程序。正在运行的服务会在切换时短暂停止并恢复。数据库、媒体和用户插件保存在数据目录中。
+
+程序目录保留当前版本和上次安装的版本。更改数据目录前先停止服务，并将原数据移动到新目录。
+
+## 从已安装的独立核心包升级
+
+如果系统已安装 `tingreader` 软件包，先停止服务并备份 `/etc/config/tingreader`，卸载原 `luci-app-tingreader` 和 `tingreader`，再安装本页面的软件包。将备份的配置还原后，在程序管理页面下载程序，并继续使用原数据目录。
+
+## 源码编译
+
+在 OpenWrt 的 `feeds.conf.default` 中添加：
 
 ```text
 src-git tingreader https://github.com/dqsq2e2/luci-app-tingreader.git
 ```
 
-然后执行更新与安装：
-
 ```sh
 ./scripts/feeds update tingreader
 ./scripts/feeds install -a -p tingreader
 make menuconfig
-```
-
-在 `Multimedia` 中勾选 `tingreader`，并在 `LuCI -> Applications` 中勾选 `luci-app-tingreader`。
-
-单包独立编译命令：
-
-```sh
-make package/tingreader/compile V=s
 make package/luci-app-tingreader/compile V=s
 ```
 
----
+在 `LuCI → Applications` 中选择 `luci-app-tingreader`。
 
-## 📂 核心路径一览
-
-- **UCI 配置文件**：`/etc/config/tingreader`
-- **动态生成配置**：`/var/etc/tingreader.toml`
-- **系统数据目录**：`$data_dir/data/`（包含数据库 `ting-reader.db`、日志 `logs/`、插件 `plugins/` 与缓存 `tmp/`）
-- **默认媒体存储**：`$data_dir/storage/`
-- **程序安装目录**：`/usr/lib/tingreader`
-- **系统服务控制**：`/etc/init.d/tingreader {start|stop|restart|status}`
-
----
-
-## 🔄 上游版本同步与自动化
-
-`version.mk` 锁定了上游 Ting Reader 正式版本号及各架构二进制的 SHA-256 校验值。
-
-本仓库通过 GitHub Actions 实现了：
-1. **自动监听主仓发版**：通过 `repository_dispatch` 与定时轮询，自动捕获上游发布并完成原生编译；
-2. **多架构全自动发版**：自动产出全架构 IPK / APK 并发布 Release；
-3. **CI 历史自动滚动清理**：工作流结束后自动清理过期的运行记录与构建缓存，保持仓库清爽。
-
+本仓库分别构建 LuCI 软件包和 Ting Reader 后端。主项目发布新版本后，后端工作流原生编译 AMD64/ARM64 并发布程序归档及校验清单；LuCI 软件包独立更新。

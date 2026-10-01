@@ -6,13 +6,13 @@
 				"/usr/libexec/tingreader-read-log": [ "exec" ]
 			},
 			"ubus": {
-				"luci.tingreader": [ "status", "info" ]
+				"luci.tingreader": [ "status", "info", "download_status" ]
 			},
 			"uci": [ "tingreader" ]
 		},
 		"write": {
 			"ubus": {
-				"luci.tingreader": [ "action" ]
+				"luci.tingreader": [ "action", "download", "cancel_download" ]
 			},
 			"uci": [ "tingreader" ]
 		}

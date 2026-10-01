@@ -27,7 +27,27 @@ var callAction = rpc.declare({
 	expect: { '': {} }
 });
 
+var callDownload = rpc.declare({
+	object: 'luci.tingreader',
+	method: 'download',
+	params: [ 'version', 'directory', 'mirror' ],
+	expect: { '': {} }
+});
+
+var callDownloadStatus = rpc.declare({
+	object: 'luci.tingreader',
+	method: 'download_status',
+	expect: { '': {} }
+});
+
+var callCancelDownload = rpc.declare({
+	object: 'luci.tingreader',
+	method: 'cancel_download',
+	expect: { '': {} }
+});
+
 var statusNode;
+var downloadBusy = false;
 
 function notifyError(message) {
 	ui.addNotification(null, E('p', message), 'error');
@@ -198,6 +218,12 @@ function renderStatus(status) {
 	else if (exists && enabled) {
 		buttons.push(actionButton(_('Start'), 'apply', 'start'));
 	}
+	if (!exists)
+		details.push(_('Download the program below before starting the service.'));
+
+	buttons.forEach(function(button) {
+		button.disabled = downloadBusy;
+	});
 
 	buttons.push(E('button', {
 		'type': 'button',
@@ -247,6 +273,151 @@ function validatePath(sectionId, value) {
 	return true;
 }
 
+function renderDownloadSection(info, defaultDataDir, mounts) {
+	var supported = /^(x86_64|aarch64|arm64)$/.test(info.architecture || '');
+	var version = E('input', {
+		'type': 'text', 'class': 'cbi-input-text', 'value': 'latest',
+		'placeholder': _('latest or a version such as 2.0.0')
+	});
+	var choices = {};
+	mounts.forEach(function(mount) {
+		var path = String(mount.path).replace(/\/+$/, '') + '/tingreader/program';
+		choices[path] = path;
+	});
+	var initialDir = uci.get('tingreader', 'main', 'program_dir') || defaultDataDir + '/program';
+	choices[initialDir] = initialDir;
+	var directory = new ui.Dropdown(initialDir, choices, {
+		create: true, optional: false,
+		custom_placeholder: _('Enter a custom absolute path')
+	});
+	var proxies = {
+		auto: _('Automatic (try accelerators, then GitHub)'),
+		direct: _('GitHub direct'),
+		'https://ghproxy.net/': 'https://ghproxy.net/',
+		'https://gh-proxy.com/': 'https://gh-proxy.com/',
+		'https://ghfast.top/': 'https://ghfast.top/'
+	};
+	L.toArray(uci.get('tingreader', 'main', 'github_proxies')).forEach(function(proxy) {
+		proxies[proxy] = proxy;
+	});
+	var mirror = new ui.Dropdown(uci.get('tingreader', 'main', 'github_proxy') || 'auto', proxies, {
+		create: true, optional: false,
+		custom_placeholder: _('Custom HTTPS accelerator URL')
+	});
+	var installed = E('span');
+	var message = E('p', { 'style': 'margin:8px 0;overflow-wrap:anywhere' });
+	var progress = E('progress', {
+		'max': 100, 'value': 0, 'style': 'width:100%;height:14px;display:none'
+	});
+	var details = E('small', { 'style': 'display:block;margin-top:4px' });
+	var errors = {
+		download_failed: _('Download failed. Try another accelerator or GitHub direct.'),
+		checksum_failed: _('Checksum verification failed. The installed program was kept.'),
+		invalid_manifest: _('Invalid Release manifest. Please check the requested version.'),
+		invalid_archive: _('Invalid program archive. The installed program was kept.'),
+		verify_failed: _('The downloaded program cannot run on this device.'),
+		unsupported_arch: _('No backend Release is available for this architecture.'),
+		invalid_directory: _('Choose a dedicated absolute program directory without spaces or symlinks.'),
+		invalid_arguments: _('Invalid download settings.'),
+		no_space: _('Not enough free space in the program directory.'),
+		install_failed: _('Installation failed. The previous program was restored.'),
+		start_failed: _('The service could not restart. The previous program was restored.'),
+		stop_failed: _('The service could not stop. The installed program was kept.'),
+		interrupted: _('The download was interrupted.')
+	};
+	var phases = {
+		queued: _('Preparing download...'),
+		manifest: _('Reading Release information...'),
+		backend: _('Downloading backend...'),
+		frontend: _('Downloading Web frontend...'),
+		checksum: _('Verifying program files...'),
+		switching: _('Installing program...'),
+		done: _('Program installed. Enable the service in Settings and apply.')
+	};
+	var downloadButton = E('button', {
+		'type': 'button', 'class': 'btn cbi-button cbi-button-apply',
+		'disabled': !supported,
+		'click': function(ev) {
+			ev.preventDefault();
+			var requested = version.value.trim();
+			var path = String(directory.getValue() || '').replace(/\/+$/, '');
+			var proxy = String(mirror.getValue() || '');
+			if (!/^(latest|v?\d+\.\d+\.\d+(-[A-Za-z0-9]+([.-][A-Za-z0-9]+)*)?)$/.test(requested) ||
+			    !/^\/[A-Za-z0-9_./-]+$/.test(path) || /(^|\/)\.\.?($|\/)|\/\//.test(path) ||
+			    !/^(auto|direct|https:\/\/[A-Za-z0-9_./:~-]+)$/.test(proxy)) {
+				notifyError(_('Enter a valid version, absolute program path and HTTPS accelerator URL.'));
+				return;
+			}
+			downloadButton.disabled = true;
+			return callDownload(requested, path, proxy).then(function(result) {
+				if (!result.success)
+					throw new Error(result.code === 3 ? _('A download is already in progress.') : _('Unable to start download. Check the program directory.'));
+				return update();
+			}).catch(function(err) {
+				notifyError(err.message || err);
+				downloadButton.disabled = !supported;
+			});
+		}
+	}, [ _('Download / Update') ]);
+	var cancelButton = E('button', {
+		'type': 'button', 'class': 'btn cbi-button cbi-button-reset', 'disabled': true,
+		'click': function(ev) {
+			ev.preventDefault();
+			cancelButton.disabled = true;
+			return callCancelDownload().catch(function(err) {
+				notifyError(err.message || err);
+			});
+		}
+	}, [ _('Cancel download') ]);
+
+	function update() {
+		return callDownloadStatus().then(function(state) {
+			downloadBusy = !!state.busy;
+			version.disabled = downloadBusy;
+			downloadButton.disabled = downloadBusy || !supported;
+			cancelButton.disabled = !downloadBusy || state.phase === 'switching';
+			progress.style.display = downloadBusy ? 'block' : 'none';
+			progress.value = +state.percent || 0;
+			dom.content(installed, state.version_installed || _('Not installed'));
+			var text = state.state === 'error' ? (errors[state.error] || _('Installation failed.')) :
+				state.state === 'cancelled' ? _('Download cancelled. The installed program was kept.') :
+				phases[state.phase] || _('Select a version and download the backend and Web frontend together.');
+			if (!state.busy && state.state && state.state !== 'complete' && state.state !== 'error' && state.state !== 'cancelled')
+				text = _('The download was interrupted.');
+			dom.content(message, supported ? text : errors.unsupported_arch);
+			dom.content(details, downloadBusy
+				? '%s · %s%% · %s / %s'.format(state.version || 'latest', state.percent || 0,
+					formatBytes(state.downloaded), formatBytes(state.total)) : '');
+			message.style.color = state.state === 'error' || !supported ? '#c33' : '';
+		}).catch(function(err) {
+			dom.content(message, _('Unable to read download status: %s').format(err.message || err));
+		});
+	}
+
+	function field(label, widget, hint) {
+		return E('div', { 'class': 'cbi-value' }, [
+			E('label', { 'class': 'cbi-value-title' }, [ label ]),
+			E('div', { 'class': 'cbi-value-field' }, [
+				widget,
+				hint ? E('div', { 'class': 'cbi-value-description' }, [ hint ]) : ''
+			])
+		]);
+	}
+
+	poll.add(update, 2);
+	update();
+	return E('div', { 'class': 'cbi-section' }, [
+		E('h3', {}, [ _('Program management') ]),
+		field(_('Installed version'), installed),
+		field(_('Architecture'), E('span', {}, [ info.architecture || _('Unknown') ])),
+		field(_('Version to download'), version, _('Use latest for the latest published backend, or enter a specific version.')),
+		field(_('Program directory'), directory.render(), _('Use an external disk with execution support. Program files are stored separately from the database and media.')),
+		field(_('Download source'), mirror.render(), _('An accelerator URL is prepended to the GitHub download URL. Custom HTTPS addresses are supported.')),
+		E('div', { 'style': 'display:flex;gap:8px;flex-wrap:wrap;margin-top:12px' }, [ downloadButton, cancelButton ]),
+		message, progress, details
+	]);
+}
+
 return view.extend({
 	load: function() {
 		return Promise.all([
@@ -282,17 +453,17 @@ return view.extend({
 			])
 		];
 
-		if (info.version) {
-			headerNodes.push(E('p', { 'style': 'margin:0;color:#666;' }, [
-				_('Installed version: %s').format(info.version)
-			]));
-		}
-
 		m = new form.Map('tingreader', _('Ting Reader'), E('div', { 'class': 'cbi-map-descr' }, headerNodes));
 
 		s = m.section(form.TypedSection);
 		s.anonymous = true;
 		s.render = renderStatusSection;
+
+		s = m.section(form.TypedSection);
+		s.anonymous = true;
+		s.render = function() {
+			return renderDownloadSection(info, defaultDataDir, mounts);
+		};
 
 		s = m.section(form.NamedSection, 'main', 'tingreader', _('Settings'));
 		s.addremove = false;

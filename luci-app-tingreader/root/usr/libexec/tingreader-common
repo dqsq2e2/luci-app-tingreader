@@ -1,0 +1,30 @@
+#!/bin/sh
+
+tingreader_valid_path() {
+	case "$1" in
+		/*) ;;
+		*) return 1 ;;
+	esac
+	case "$1" in
+		*[!A-Za-z0-9_./-]*|*/../*|*/./*|*/..|*/.|*//*|/) return 1 ;;
+	esac
+}
+
+tingreader_program_dir() {
+	local directory data
+	directory="$(uci -q get tingreader.main.program_dir)"
+	if [ -z "$directory" ]; then
+		data="$(uci -q get tingreader.main.data_dir)"
+		directory="${data:-/etc/tingreader}/program"
+	fi
+	tingreader_valid_path "$directory" || return 1
+	printf '%s\n' "${directory%/}"
+}
+
+tingreader_loader() {
+	case "$(uname -m)" in
+		x86_64) printf '%s\n' ld-linux-x86-64.so.2 ;;
+		aarch64|arm64) printf '%s\n' ld-linux-aarch64.so.1 ;;
+		*) return 1 ;;
+	esac
+}

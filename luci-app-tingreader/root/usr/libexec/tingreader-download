@@ -1,0 +1,314 @@
+#!/bin/sh
+# Asynchronous Release installer. Only program files are switched; data stays in place.
+
+. /usr/libexec/tingreader-common
+. /usr/share/libubox/jshn.sh
+
+STATE_DIR=/var/run/tingreader-download
+LOCK=/var/lock/tingreader-download
+RELEASE_URL=https://github.com/dqsq2e2/luci-app-tingreader/releases/download
+STAGE=''
+CHILD=''
+SWITCHED=0
+FINISHED=0
+WAS_RUNNING=0
+OLD_PROGRAM=''
+OLD_CURRENT=''
+VERSION=''
+DIRECTORY=''
+MIRROR=''
+DOWNLOADED=0
+TOTAL=0
+PERCENT=0
+
+valid_version() {
+	[ "$1" = latest ] || printf '%s\n' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9]+([.-][A-Za-z0-9]+)*)?$'
+}
+
+valid_directory() {
+	tingreader_valid_path "$1" || return 1
+	# A dedicated directory is required, never a system or data root.
+	case "${1%/}" in
+		/etc|/usr|/usr/bin|/usr/lib|/usr/share|/bin|/sbin|/lib|/opt|/mnt|/var|/tmp|/root|/home|/proc*|/sys*|/dev*) return 1 ;;
+	esac
+	local data
+	data="$(uci -q get tingreader.main.data_dir)"
+	data="${data:-/etc/tingreader}"
+	case "${1%/}/" in
+		"$data/"|"$data/data/"*) return 1 ;;
+	esac
+}
+
+valid_mirror() {
+	case "$1" in
+		direct|auto) return 0 ;;
+		https://*) ;;
+		*) return 1 ;;
+	esac
+	case "$1" in
+		*[!A-Za-z0-9_./:~-]*) return 1 ;;
+	esac
+	[ -n "${1#https://}" ]
+}
+
+status() {
+	local state="$1" phase="$2" error="${3:-}"
+	json_init
+	json_add_string state "$state"
+	json_add_string phase "$phase"
+	json_add_string error "$error"
+	json_add_string version "$VERSION"
+	json_add_string directory "$DIRECTORY"
+	json_add_int percent "$PERCENT"
+	json_add_int downloaded "$DOWNLOADED"
+	json_add_int total "$TOTAL"
+	json_dump > "$STATE_DIR/status.new"
+	mv -f "$STATE_DIR/status.new" "$STATE_DIR/status.json"
+}
+
+rollback() {
+	[ "$SWITCHED" -eq 1 ] || return 0
+	/etc/init.d/tingreader stop >/dev/null 2>&1
+	if [ -n "$OLD_CURRENT" ]; then
+		ln -s "$OLD_CURRENT" "$DIRECTORY/.rollback.$$"
+		mv -Tf "$DIRECTORY/.rollback.$$" "$DIRECTORY/current"
+	else
+		rm -f "$DIRECTORY/current"
+	fi
+	if [ -n "$OLD_PROGRAM" ]; then
+		uci -q set "tingreader.main.program_dir=$OLD_PROGRAM"
+	else
+		uci -q delete tingreader.main.program_dir
+	fi
+	uci -q commit tingreader
+	[ "$WAS_RUNNING" -eq 0 ] || /etc/init.d/tingreader start >/dev/null 2>&1
+	SWITCHED=0
+}
+
+cleanup() {
+	[ -z "$CHILD" ] || { kill "$CHILD" 2>/dev/null; wait "$CHILD" 2>/dev/null; }
+	rollback
+	# STAGE is a private, generated child of the validated installation directory.
+	[ -z "$STAGE" ] || rm -rf "$STAGE"
+	[ "$FINISHED" -eq 1 ] || status error stopped interrupted
+	rm -f "$LOCK/pid" "$LOCK/cancel"
+	rmdir "$LOCK" 2>/dev/null
+}
+
+fail() {
+	FINISHED=1
+	rollback
+	status error stopped "$1"
+	exit 1
+}
+
+cancelled() {
+	[ -f "$LOCK/cancel" ] || return 1
+	FINISHED=1
+	status cancelled stopped cancelled
+	exit 1
+}
+
+fetch() {
+	local url="$1" output="$2" maximum="$3" phase="$4" offset="$5" span="$6"
+	local proxies proxy target bytes
+	if [ "$MIRROR" = auto ]; then
+		proxies="$(uci -q get tingreader.main.github_proxies)"
+		proxies="${proxies:-https://ghproxy.net/ https://gh-proxy.com/ https://ghfast.top/} direct"
+	else
+		proxies="$MIRROR"
+	fi
+	for proxy in $proxies; do
+		valid_mirror "$proxy" || continue
+		cancelled
+		if [ "$proxy" = direct ]; then target="$url"; else target="${proxy%/}/$url"; fi
+		rm -f "$output"
+		curl -fL --proto '=https' --proto-redir '=https' --connect-timeout 15 \
+			--max-time 1800 --speed-time 30 --speed-limit 1024 \
+			--max-filesize "$maximum" --output "$output" "$target" \
+			2>"$STAGE/curl.log" &
+		CHILD=$!
+		while kill -0 "$CHILD" 2>/dev/null; do
+			cancelled
+			bytes="$(wc -c < "$output" 2>/dev/null)" || bytes=0
+			DOWNLOADED="${bytes:-0}"
+			TOTAL="$maximum"
+			PERCENT=$((offset + DOWNLOADED * span / maximum))
+			[ "$PERCENT" -le $((offset + span)) ] || PERCENT=$((offset + span))
+			status downloading "$phase"
+			sleep 1
+		done
+		if wait "$CHILD"; then CHILD=''; return 0; fi
+		CHILD=''
+	done
+	fail download_failed
+}
+
+number() {
+	case "$1" in ''|*[!0-9]*) return 1 ;; esac
+	[ "${#1}" -le 10 ] && [ "$1" -gt 0 ] && [ "$1" -le 2147483647 ]
+}
+
+hash() {
+	[ "${#1}" -eq 64 ] || return 1
+	case "$1" in *[!0-9a-f]*) return 1 ;; esac
+}
+
+validate_archive() {
+	local archive="$1" kind="$2"
+	# Reject traversal, links and special files before extracting as root.
+	tar -tzf "$archive" > "$STAGE/entries" || fail invalid_archive
+	tar -tvzf "$archive" > "$STAGE/types" || fail invalid_archive
+	awk '$0 !~ /^[-d]/ { bad=1 } END { exit bad }' "$STAGE/types" || fail invalid_archive
+	while IFS= read -r path; do
+		path="${path#./}"
+		[ -n "$path" ] || continue
+		case "$path" in /*|*/../*|../*|*/..|*/./*|*\\*) fail invalid_archive ;; esac
+		if [ "$kind" = backend ]; then
+			case "$path" in ting-reader|config.toml|version|runtime/|runtime/*|bin/|bin/*|preinstalled-plugins/|preinstalled-plugins/*) ;;
+				*) fail invalid_archive ;;
+			esac
+		else
+			case "$path" in static/|static/*) ;; *) fail invalid_archive ;; esac
+		fi
+	done < "$STAGE/entries"
+}
+
+install() {
+	case "$(uname -m)" in
+		x86_64) arch=amd64 ;;
+		aarch64|arm64) arch=arm64 ;;
+		*) fail unsupported_arch ;;
+	esac
+	mkdir -p "$DIRECTORY" || fail install_failed
+	# Refuse redirects through an existing symlink in the program path.
+	[ "$(readlink -f "$DIRECTORY")" = "$DIRECTORY" ] || fail invalid_directory
+	[ ! -e "$DIRECTORY/current" ] || [ -L "$DIRECTORY/current" ] || fail invalid_directory
+	STAGE="$(mktemp -d "$DIRECTORY/.download-XXXXXX")" || fail install_failed
+	chmod 700 "$STAGE"
+	status preparing manifest
+	if [ "$VERSION" = latest ]; then
+		fetch "$RELEASE_URL/backend-latest/latest.json" "$STAGE/manifest.json" 65536 manifest 0 2
+	else
+		fetch "$RELEASE_URL/backend-v$VERSION/manifest.json" "$STAGE/manifest.json" 65536 manifest 0 2
+	fi
+	actual="$(jsonfilter -i "$STAGE/manifest.json" -e '@.version')"
+	valid_version "$actual" && [ "$actual" != latest ] || fail invalid_manifest
+	[ "$VERSION" = latest ] || [ "$VERSION" = "$actual" ] || fail invalid_manifest
+	VERSION="$actual"
+	[ "$(jsonfilter -i "$STAGE/manifest.json" -e '@.schema')" = 1 ] || fail invalid_manifest
+	backend="ting-reader-backend-linux-$arch-$VERSION.tar.gz"
+	frontend="ting-reader-frontend-$VERSION.tar.gz"
+	[ "$(jsonfilter -i "$STAGE/manifest.json" -e "@.backend.$arch.file")" = "$backend" ] || fail invalid_manifest
+	[ "$(jsonfilter -i "$STAGE/manifest.json" -e '@.frontend.file')" = "$frontend" ] || fail invalid_manifest
+	bhash="$(jsonfilter -i "$STAGE/manifest.json" -e "@.backend.$arch.sha256")"
+	fhash="$(jsonfilter -i "$STAGE/manifest.json" -e '@.frontend.sha256')"
+	bsize="$(jsonfilter -i "$STAGE/manifest.json" -e "@.backend.$arch.size")"
+	fsize="$(jsonfilter -i "$STAGE/manifest.json" -e '@.frontend.size')"
+	bunpack="$(jsonfilter -i "$STAGE/manifest.json" -e "@.backend.$arch.unpacked_size")"
+	funpack="$(jsonfilter -i "$STAGE/manifest.json" -e '@.frontend.unpacked_size')"
+	hash "$bhash" && hash "$fhash" && number "$bsize" && number "$fsize" &&
+		number "$bunpack" && number "$funpack" || fail invalid_manifest
+	free_kb="$(df -Pk "$DIRECTORY" | awk 'END { print $4 }')"
+	[ "$free_kb" -gt $(((bsize + fsize + bunpack + funpack) / 1024 + 32768)) ] 2>/dev/null || fail no_space
+	fetch "$RELEASE_URL/backend-v$VERSION/$backend" "$STAGE/backend.tar.gz" "$bsize" backend 2 68
+	fetch "https://github.com/dqsq2e2/ting-reader/releases/download/v$VERSION/$frontend" \
+		"$STAGE/frontend.tar.gz" "$fsize" frontend 70 20
+	cancelled
+	PERCENT=90
+	status verifying checksum
+	[ "$(sha256sum "$STAGE/backend.tar.gz" | awk '{print $1}')" = "$bhash" ] &&
+		[ "$(sha256sum "$STAGE/frontend.tar.gz" | awk '{print $1}')" = "$fhash" ] || fail checksum_failed
+	validate_archive "$STAGE/backend.tar.gz" backend
+	validate_archive "$STAGE/frontend.tar.gz" frontend
+	mkdir "$STAGE/program" || fail install_failed
+	tar -xzf "$STAGE/backend.tar.gz" -C "$STAGE/program" &&
+		tar -xzf "$STAGE/frontend.tar.gz" -C "$STAGE/program" || fail invalid_archive
+	loader="$(tingreader_loader)" || fail unsupported_arch
+	runtime="$STAGE/program/runtime"
+	[ -s "$STAGE/program/ting-reader" ] && [ -s "$STAGE/program/static/index.html" ] &&
+		[ -x "$runtime/$loader" ] &&
+		[ -x "$runtime/bin/ffmpeg" ] && [ -x "$runtime/bin/ffprobe" ] || fail verify_failed
+	chmod -R go-w "$STAGE/program"
+	chmod 755 "$STAGE/program/ting-reader"
+	# Check ELF dependencies and both audio tools before stopping the active service.
+	"$runtime/$loader" --library-path "$runtime" --list "$STAGE/program/ting-reader" > "$STAGE/verify.log" 2>&1 &&
+		"$runtime/bin/ffmpeg" -version >> "$STAGE/verify.log" 2>&1 &&
+		"$runtime/bin/ffprobe" -version >> "$STAGE/verify.log" 2>&1 || fail verify_failed
+	cancelled
+	PERCENT=95
+	status installing switching
+	OLD_PROGRAM="$(uci -q get tingreader.main.program_dir)"
+	OLD_CURRENT="$(readlink "$DIRECTORY/current")"
+	if /etc/init.d/tingreader running >/dev/null 2>&1; then WAS_RUNNING=1; fi
+	release=".release-$VERSION-$(date +%s)-$$"
+	printf '%s\n' "$VERSION" > "$STAGE/program/version"
+	mv "$STAGE/program" "$DIRECTORY/$release" || fail install_failed
+	chmod 755 "$DIRECTORY" "$DIRECTORY/$release"
+	# Set rollback before stopping so any subsequent failure restores the service.
+	SWITCHED=1
+	/etc/init.d/tingreader stop >/dev/null 2>&1 || fail stop_failed
+	ln -s "$release" "$DIRECTORY/.current.$$" &&
+		mv -Tf "$DIRECTORY/.current.$$" "$DIRECTORY/current" || fail install_failed
+	uci -q set "tingreader.main.program_dir=$DIRECTORY" &&
+		uci -q set "tingreader.main.github_proxy=$MIRROR" &&
+		uci -q commit tingreader || fail install_failed
+	if [ "$WAS_RUNNING" -eq 1 ]; then
+		/etc/init.d/tingreader start >/dev/null 2>&1 || fail start_failed
+		sleep 3
+		/etc/init.d/tingreader running >/dev/null 2>&1 || fail start_failed
+	fi
+	SWITCHED=0
+	# Keep one previous installation; remove only directories created by this installer.
+	for previous in "$DIRECTORY"/.release-*; do
+		[ -d "$previous" ] && [ ! -L "$previous" ] && [ -f "$previous/version" ] || continue
+		[ "$previous" != "$DIRECTORY/$release" ] && [ "$previous" != "$DIRECTORY/$OLD_CURRENT" ] || continue
+		rm -rf "$previous"
+	done
+	FINISHED=1
+	PERCENT=100
+	status complete done
+}
+
+umask 077
+case "$1" in
+	start)
+		VERSION="${2#v}"
+		DIRECTORY="${3%/}"
+		MIRROR="$4"
+		valid_version "$VERSION" && valid_directory "$DIRECTORY" && valid_mirror "$MIRROR" || exit 2
+		mkdir -p "$STATE_DIR" /var/lock || exit 1
+		if ! mkdir "$LOCK" 2>/dev/null; then
+			pid="$(cat "$LOCK/pid" 2>/dev/null)"
+			case "$pid" in
+				''|*[!0-9]*) exit 3 ;;
+			esac
+			if kill -0 "$pid" 2>/dev/null &&
+				tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -qF "$0 worker "; then
+				exit 3
+			fi
+			rm -f "$LOCK/pid" "$LOCK/cancel"
+			rmdir "$LOCK" 2>/dev/null || exit 3
+			mkdir "$LOCK" 2>/dev/null || exit 3
+		fi
+		status preparing queued
+		# Redirect all descriptors so rpcd returns immediately.
+		"$0" worker "$VERSION" "$DIRECTORY" "$MIRROR" \
+			>"$STATE_DIR/worker.log" 2>&1 </dev/null &
+		echo "$!" > "$LOCK/pid"
+		;;
+	worker)
+		VERSION="${2#v}"
+		DIRECTORY="${3%/}"
+		MIRROR="$4"
+		trap cleanup EXIT
+		trap 'exit 1' INT TERM HUP
+		valid_version "$VERSION" && valid_directory "$DIRECTORY" && valid_mirror "$MIRROR" || fail invalid_arguments
+		install
+		;;
+	cancel)
+		[ -d "$LOCK" ] || exit 0
+		touch "$LOCK/cancel"
+		;;
+	*) exit 2 ;;
+esac

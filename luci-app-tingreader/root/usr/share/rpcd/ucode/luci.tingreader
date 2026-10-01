@@ -5,9 +5,42 @@
 import { access, glob, readfile } from 'fs';
 import * as fs from 'fs';
 import { process_list } from 'luci.sys';
+import { cursor } from 'uci';
 
 const wrapper = '/usr/bin/ting-reader';
-const binary = '/usr/lib/tingreader/ting-reader';
+const downloader = '/usr/libexec/tingreader-download';
+
+function program_directory() {
+	let config = cursor();
+	return config.get('tingreader', 'main', 'program_dir') ||
+		(config.get('tingreader', 'main', 'data_dir') || '/etc/tingreader') + '/program';
+}
+
+function download_status() {
+	let result;
+	try {
+		result = json(readfile('/var/run/tingreader-download/status.json') || '{}');
+	}
+	catch (e) {
+		result = {};
+	}
+	result.busy = !!fs.stat('/var/lock/tingreader-download');
+	let pid = trim(readfile('/var/lock/tingreader-download/pid') || '');
+	if (result.busy && match(pid, /^[0-9]+$/)) {
+		let command = readfile('/proc/' + pid + '/cmdline') || '';
+		result.busy = index(command, '/usr/libexec/tingreader-download\x00worker\x00') >= 0;
+	}
+	return result;
+}
+
+function architecture() {
+	let pipe = fs.popen('uname -m', 'r');
+	if (!pipe)
+		return '';
+	let value = trim(pipe.read('all') || '');
+	pipe.close();
+	return value;
+}
 
 const supportedFilesystems = {
 	'ext2': true,
@@ -86,7 +119,7 @@ function storage_mounts() {
 		if (is_subpath)
 			continue;
 
-		let fs_key = m.total + ':' + m.free;
+		let fs_key = m.total ? m.total + ':' + m.free : m.path;
 		if (seen_fs[fs_key])
 			continue;
 		seen_fs[fs_key] = true;
@@ -106,6 +139,7 @@ function storage_mounts() {
 }
 
 function process_status() {
+	let binary = program_directory() + '/current/ting-reader';
 	let result = {
 		exists: !!access(wrapper, 'x') && !!access(binary, 'x'),
 		running: false
@@ -114,7 +148,7 @@ function process_status() {
 
 	for (let path in glob('/proc/[0-9]*/cmdline')) {
 		let cmdline = readfile(path) || '';
-		if (index(cmdline, '/usr/lib/tingreader/ting-reader') < 0 && index(cmdline, '/usr/bin/ting-reader') < 0)
+		if (index(cmdline, binary + '\x00') < 0 && index(cmdline, wrapper + '\x00') < 0)
 			continue;
 
 		let fields = match(path, /^\/proc\/([0-9]+)\/cmdline$/);
@@ -152,8 +186,11 @@ const methods = {
 	info: {
 		call: function() {
 			return {
-				version: trim(readfile('/usr/share/tingreader/version') || ''),
-				mounts: storage_mounts()
+				version: trim(readfile(program_directory() + '/current/version') || ''),
+				program_dir: program_directory(),
+				architecture: architecture(),
+				mounts: storage_mounts(),
+				download: download_status()
 			};
 		}
 	},
@@ -162,6 +199,8 @@ const methods = {
 		args: { action: 'string' },
 		call: function(request) {
 			let rc = -1;
+			if (download_status().busy)
+				return { success: false, code: 3, message: 'A program download is in progress.' };
 			switch (request.args.action) {
 			case 'start':
 			case 'restart':
@@ -173,6 +212,36 @@ const methods = {
 			default:
 				return { success: false, code: 2, message: 'invalid action' };
 			}
+		}
+	},
+
+	download_status: {
+		call: function() {
+			let result = download_status();
+			result.version_installed = trim(readfile(program_directory() + '/current/version') || '');
+			result.program_dir = program_directory();
+			return result;
+		}
+	},
+
+	download: {
+		args: { version: 'string', directory: 'string', mirror: 'string' },
+		call: function(request) {
+			let args = request.args;
+			if (!match(args.version || '', /^(latest|v?[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9]+([.-][A-Za-z0-9]+)*)?)$/) ||
+			    !match(args.directory || '', /^\/[A-Za-z0-9_.\/-]+$/) ||
+			    !match(args.mirror || '', /^(direct|auto|https:\/\/[A-Za-z0-9_.\/:~-]+)$/))
+				return { success: false, code: 2 };
+			let rc = system(sprintf("%s start '%s' '%s' '%s' >/dev/null 2>&1",
+				downloader, args.version, args.directory, args.mirror));
+			return { success: rc === 0, code: rc };
+		}
+	},
+
+	cancel_download: {
+		call: function() {
+			let rc = system(downloader + ' cancel >/dev/null 2>&1');
+			return { success: rc === 0, code: rc };
 		}
 	}
 };

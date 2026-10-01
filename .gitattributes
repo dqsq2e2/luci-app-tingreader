@@ -1,0 +1,7 @@
+*.sh text eol=lf
+*.yml text eol=lf
+*.po text eol=lf
+*.pot text eol=lf
+*.js text eol=lf
+Makefile text eol=lf
+luci-app-tingreader/root/** text eol=lf

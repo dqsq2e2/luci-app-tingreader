@@ -1,0 +1,12 @@
+#!/bin/sh
+
+. /usr/libexec/tingreader-common
+PROGRAM_DIR="$(tingreader_program_dir)" || exit 1
+LOADER="$(tingreader_loader)" || exit 1
+RUNTIME_DIR="$PROGRAM_DIR/current/runtime"
+
+[ -x "$RUNTIME_DIR/$LOADER" ] && [ -x "$PROGRAM_DIR/current/ting-reader" ] || {
+	echo "Download Ting Reader from the LuCI program management page first." >&2
+	exit 1
+}
+exec "$RUNTIME_DIR/$LOADER" --library-path "$RUNTIME_DIR" "$PROGRAM_DIR/current/ting-reader" "$@"

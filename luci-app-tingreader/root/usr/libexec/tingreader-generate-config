@@ -1,6 +1,7 @@
 #!/bin/sh
 
 . /lib/functions.sh
+. /usr/libexec/tingreader-common
 
 OUTPUT="${1:-/var/etc/tingreader.toml}"
 ROOTS=''
@@ -49,7 +50,8 @@ config_get listen_port main listen_port '3000'
 config_get data_dir main data_dir ''
 config_get log_level main log_level 'info'
 config_get jwt_secret main jwt_secret ''
-version="$(cat /usr/share/tingreader/version 2>/dev/null)"
+program_dir="$(tingreader_program_dir)" || exit 1
+version="$(cat "$program_dir/current/version" 2>/dev/null)"
 version="${version:-unknown}"
 
 case "$listen_port" in
@@ -101,6 +103,7 @@ app_data_dir_escaped="$(toml_escape "$app_data_dir")"
 primary_root_escaped="$(toml_escape "$PRIMARY_ROOT")"
 jwt_secret="$(toml_escape "$jwt_secret")"
 version="$(toml_escape "$version")"
+program_dir_escaped="$(toml_escape "$program_dir")"
 
 cat > "$OUTPUT" <<EOF
 version = "$version"
@@ -118,7 +121,7 @@ busy_timeout = 30000
 
 [plugins]
 plugin_dir = "$app_data_dir_escaped/plugins"
-preinstalled_dir = "/usr/lib/tingreader/preinstalled-plugins"
+preinstalled_dir = "$program_dir_escaped/current/preinstalled-plugins"
 enable_hot_reload = true
 max_memory_per_plugin = 536870912
 max_execution_time = 300
