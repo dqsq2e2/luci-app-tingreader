@@ -36,6 +36,23 @@ grant_repo_permission() {
 	fi
 }
 
+# The service runs as RUN_USER; chowning the data dir is not enough when a
+# parent directory (e.g. /opt/docker with mode 710 root:root) blocks
+# traversal. Walk the parent chain and grant the traverse bit. o+x only
+# (never chgrp): parent dirs often belong to other apps like dockerman.
+grant_parent_traverse() {
+	local dir
+	dir=$(dirname "$1")
+	while [ "$dir" != "/" ] && [ -n "$dir" ]; do
+		[ -d "$dir" ] || break
+		if ! su -s /bin/sh "$RUN_USER" -c "test -x '$dir'" 2>/dev/null; then
+			logger -t tingreader "grant traverse on $dir for $RUN_USER"
+			chmod o+x "$dir" 2>/dev/null
+		fi
+		dir=$(dirname "$dir")
+	done
+}
+
 grant_all_permissions() {
 	local data_dir="$1"
 	ensure_user
@@ -44,6 +61,9 @@ grant_all_permissions() {
 	mkdir -p "$data_dir" "$data_dir/data" "$data_dir/data/logs" "$data_dir/data/plugins" "$data_dir/data/tmp" /var/etc /tmp/tingreader || return 1
 	chown -R "$RUN_USER:$RUN_GROUP" "$data_dir" /tmp/tingreader 2>/dev/null
 	chmod -R u+rwX,g+rX "$data_dir" /tmp/tingreader 2>/dev/null
+
+	# Make sure every parent of data_dir is traversable by the service user
+	grant_parent_traverse "$data_dir"
 
 	# Grant permissions to user-configured repository paths
 	config_foreach grant_repo_permission repository
