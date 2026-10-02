@@ -134,6 +134,19 @@ jobs:
           pattern: backend-*
           path: dist
           merge-multiple: true
+      - name: Wait for matching Web frontend Release
+        run: |
+          frontend="ting-reader-frontend-$VERSION.tar.gz"
+          deadline=$((SECONDS + 900))
+          until gh release view "$TAG" --repo "$TING_READER_REPO" --json assets \
+            --jq '.assets[].name' 2>/dev/null | grep -Fxq "$frontend"; do
+            if (( SECONDS >= deadline )); then
+              echo "::error::Timed out waiting for $TING_READER_REPO/$TAG asset $frontend"
+              exit 1
+            fi
+            echo "Waiting for $TING_READER_REPO/$TAG asset $frontend"
+            sleep 30
+          done
       - name: Fetch matching Web frontend and generate manifest
         run: |
           curl -fL --retry 5 --retry-delay 15 \
