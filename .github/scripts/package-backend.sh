@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 : "${VERSION:?}" "${APP_ARCH:?}" "${GITHUB_WORKSPACE:?}"
 FFMPEG_VERSION=8.1.2-2
+TING_PLUGIN_STORE_VERSION=2.0.2
 case "$APP_ARCH" in
   amd64)
     ffmpeg_arch=x86_64
@@ -23,7 +24,7 @@ mkdir -p _pkg/{bin,runtime/bin,preinstalled-plugins}
 cp "$binary" _pkg/ting-reader
 cp config.toml _pkg/config.toml
 curl -fL --retry 3 \
-  https://github.com/dqsq2e2/ting-reader-plugin-store/releases/download/v2.0.0/ting-reader-plugin-store-2.0.0.tr \
+  "https://github.com/dqsq2e2/ting-reader-plugin-store/releases/download/v${TING_PLUGIN_STORE_VERSION}/ting-reader-plugin-store-${TING_PLUGIN_STORE_VERSION}.tr" \
   -o _pkg/preinstalled-plugins/ting-reader-plugin-store.tr
 
 ffmpeg_file="ffmpeg-${FFMPEG_VERSION%-*}-audio-encode-${ffmpeg_arch}-linux-gnu.tar.gz"
