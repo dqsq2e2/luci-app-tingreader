@@ -12,9 +12,13 @@ tingreader_valid_path() {
 
 tingreader_program_dir() {
 	local directory data
-	directory="$(uci -q get tingreader.main.program_dir)"
+	# procd resolves this before switching to the unprivileged service user.
+	directory="${TINGREADER_PROGRAM_DIR:-}"
 	if [ -z "$directory" ]; then
-		data="$(uci -q get tingreader.main.data_dir)"
+		directory="$(/sbin/uci -q get tingreader.main.program_dir)"
+	fi
+	if [ -z "$directory" ]; then
+		data="$(/sbin/uci -q get tingreader.main.data_dir)"
 		directory="${data:-/etc/tingreader}/program"
 	fi
 	tingreader_valid_path "$directory" || return 1

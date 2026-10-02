@@ -120,6 +120,7 @@ start_service() {
 	procd_set_param user "$RUN_USER"
 	procd_set_param group "$RUN_GROUP"
 	procd_set_param env \
+		"TINGREADER_PROGRAM_DIR=$program_dir" \
 		"HOME=$data_dir" \
 		"STATIC_DIR=$program_dir/current/static" \
 		"DATA_DIR=$data_dir/data" \

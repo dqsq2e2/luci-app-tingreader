@@ -130,7 +130,8 @@ fetch() {
 		CHILD=$!
 		while kill -0 "$CHILD" 2>/dev/null; do
 			cancelled
-			bytes="$(wc -c < "$output" 2>/dev/null)" || bytes=0
+			bytes=0
+			[ ! -f "$output" ] || bytes="$(wc -c < "$output" 2>/dev/null)" || bytes=0
 			DOWNLOADED="${bytes:-0}"
 			TOTAL="$maximum"
 			PERCENT=$((offset + DOWNLOADED * span / maximum))
