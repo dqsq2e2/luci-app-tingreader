@@ -4,7 +4,9 @@
 
 ## 安装
 
-从 [Releases](https://github.com/dqsq2e2/luci-app-tingreader/releases/latest) 下载 `luci-app-tingreader`，需要中文时同时下载 `luci-i18n-tingreader-zh-cn`。软件包架构为 `all`，只需根据系统选择 IPK 或 APK。
+从 [Releases](https://github.com/dqsq2e2/luci-app-tingreader/releases/latest) 下载 IPK 或 APK 压缩包：使用 `opkg` 的系统选择 `*-ipk.zip`，使用 `apk` 的系统选择 `*-apk.zip`。每个压缩包包含 LuCI 主包与中文语言包，无需选择 CPU 架构。
+
+解压后，在软件包所在目录执行对应命令：
 
 ```sh
 # 使用 opkg 的系统
