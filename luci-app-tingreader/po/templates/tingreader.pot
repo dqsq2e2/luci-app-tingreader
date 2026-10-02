@@ -71,7 +71,7 @@ msgstr ""
 msgid "Download source"
 msgstr ""
 
-msgid "Download the program below before starting the service."
+msgid "Download the program in Program management before starting the service."
 msgstr ""
 
 msgid "Downloading Web frontend..."
@@ -188,10 +188,13 @@ msgstr ""
 msgid "Program directory"
 msgstr ""
 
-msgid "Program installed. Enable the service in Settings and apply."
+msgid "Program installed. Enable the service in Configuration and apply."
 msgstr ""
 
 msgid "Program management"
+msgstr ""
+
+msgid "Configuration"
 msgstr ""
 
 msgid "Reading Release information..."

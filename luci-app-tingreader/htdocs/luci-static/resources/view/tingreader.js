@@ -203,7 +203,7 @@ function renderStatus(status) {
 		if (status.pid)
 			details.push(_('PID %s').format(status.pid));
 		details.push(_('CPU %s').format(withPercent(status.cpu)));
-		details.push(_('MEM %s').format(withPercent(status.memory)));
+		details.push(_('MEM %s').format(status.memory == null ? _('Unknown') : withPercent(status.memory)));
 
 		buttons.push(E('button', {
 			'type': 'button',
@@ -219,7 +219,7 @@ function renderStatus(status) {
 		buttons.push(actionButton(_('Start'), 'apply', 'start'));
 	}
 	if (!exists)
-		details.push(_('Download the program below before starting the service.'));
+		details.push(_('Download the program in Program management before starting the service.'));
 
 	buttons.forEach(function(button) {
 		button.disabled = downloadBusy;
@@ -332,7 +332,7 @@ function renderDownloadSection(info, defaultDataDir, mounts) {
 		frontend: _('Downloading Web frontend...'),
 		checksum: _('Verifying program files...'),
 		switching: _('Installing program...'),
-		done: _('Program installed. Enable the service in Settings and apply.')
+		done: _('Program installed. Enable the service in Configuration and apply.')
 	};
 	var downloadButton = E('button', {
 		'type': 'button', 'class': 'btn cbi-button cbi-button-apply',
@@ -407,7 +407,6 @@ function renderDownloadSection(info, defaultDataDir, mounts) {
 	poll.add(update, 2);
 	update();
 	return E('div', { 'class': 'cbi-section' }, [
-		E('h3', {}, [ _('Program management') ]),
 		field(_('Installed version'), installed),
 		field(_('Architecture'), E('span', {}, [ info.architecture || _('Unknown') ])),
 		field(_('Version to download'), version, _('Use latest for the latest published backend, or enter a specific version.')),
@@ -453,17 +452,7 @@ return view.extend({
 			])
 		];
 
-		m = new form.Map('tingreader', _('Ting Reader'), E('div', { 'class': 'cbi-map-descr' }, headerNodes));
-
-		s = m.section(form.TypedSection);
-		s.anonymous = true;
-		s.render = renderStatusSection;
-
-		s = m.section(form.TypedSection);
-		s.anonymous = true;
-		s.render = function() {
-			return renderDownloadSection(info, defaultDataDir, mounts);
-		};
+		m = new form.Map('tingreader');
 
 		s = m.section(form.NamedSection, 'main', 'tingreader', _('Settings'));
 		s.addremove = false;
@@ -571,6 +560,26 @@ return view.extend({
 		o.validate = validatePath;
 		o.editable = true;
 
-		return m.render();
+		return m.render().then(function(mapNode) {
+			var tabs = E('div', {}, [
+				E('div', {
+					'data-tab': 'configuration',
+					'data-tab-title': _('Configuration')
+				}, [ mapNode ]),
+				E('div', {
+					'data-tab': 'program',
+					'data-tab-title': _('Program management')
+				}, [ renderDownloadSection(info, defaultDataDir, mounts) ])
+			]);
+			var page = E('div', {}, [
+				E('h2', {}, [ _('Ting Reader') ]),
+				E('div', { 'class': 'cbi-map-descr' }, headerNodes),
+				renderStatusSection(),
+				tabs
+			]);
+
+			ui.tabs.initTabGroup(tabs.childNodes);
+			return page;
+		});
 	}
 });

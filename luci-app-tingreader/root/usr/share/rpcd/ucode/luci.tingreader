@@ -169,8 +169,14 @@ function process_status() {
 			continue;
 
 		result.cpu = proc['%CPU'];
-		result.memory = proc['%MEM'];
 		break;
+	}
+
+	let resident = match(readfile('/proc/' + pid + '/status') || '', /VmRSS:\s+([0-9]+)\s+kB/);
+	if (resident) {
+		let total = match(readfile('/proc/meminfo') || '', /^MemTotal:\s+([0-9]+)\s+kB/);
+		if (total && +total[1] > 0)
+			result.memory = sprintf('%.1f%%', +resident[1] * 100.0 / +total[1]);
 	}
 
 	return result;

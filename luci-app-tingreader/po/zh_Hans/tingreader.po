@@ -72,8 +72,8 @@ msgstr "下载失败，请更换加速节点或使用 GitHub 直连。"
 msgid "Download source"
 msgstr "下载源"
 
-msgid "Download the program below before starting the service."
-msgstr "请先在下方下载程序，再启动服务。"
+msgid "Download the program in Program management before starting the service."
+msgstr "请先在「程序管理」中下载程序，再启动服务。"
 
 msgid "Downloading Web frontend..."
 msgstr "正在下载 Web 前端…"
@@ -189,11 +189,14 @@ msgstr "正在准备下载…"
 msgid "Program directory"
 msgstr "程序目录"
 
-msgid "Program installed. Enable the service in Settings and apply."
-msgstr "程序已安装，请在设置中启用服务并保存应用。"
+msgid "Program installed. Enable the service in Configuration and apply."
+msgstr "程序已安装，请在「配置」中启用服务并保存应用。"
 
 msgid "Program management"
 msgstr "程序管理"
+
+msgid "Configuration"
+msgstr "配置"
 
 msgid "Reading Release information..."
 msgstr "正在读取版本信息…"
