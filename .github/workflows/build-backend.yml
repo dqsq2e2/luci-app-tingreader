@@ -16,6 +16,10 @@ on:
         description: 'Upstream source commit or ref to rebuild. Blank uses the release tag.'
         type: string
         default: ''
+      frontend_run_id:
+        description: 'Upstream release build to wait for before fetching the frontend.'
+        type: string
+        default: ''
       force:
         description: 'Rebuild an already published version'
         type: boolean
@@ -145,10 +149,12 @@ jobs:
   publish:
     needs: [check, build]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 90
     env:
       VERSION: ${{ needs.check.outputs.version }}
       TAG: ${{ needs.check.outputs.tag }}
+      SOURCE_SHA: ${{ needs.check.outputs.source_sha }}
+      FRONTEND_RUN_ID: ${{ inputs.frontend_run_id }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -161,8 +167,33 @@ jobs:
           merge-multiple: true
       - name: Wait for matching Web frontend Release
         run: |
+          set -euo pipefail
           frontend="ting-reader-frontend-$VERSION.tar.gz"
           deadline=$((SECONDS + 900))
+          if [[ -n "$FRONTEND_RUN_ID" ]]; then
+            [[ "$FRONTEND_RUN_ID" =~ ^[0-9]+$ ]]
+            deadline=$((SECONDS + 4800))
+            while true; do
+              release_run="$(gh api "repos/$TING_READER_REPO/actions/runs/$FRONTEND_RUN_ID")"
+              if [[ "$(jq -r .head_sha <<< "$release_run")" != "$SOURCE_SHA" ]]; then
+                echo "::error::Frontend build and backend source commits do not match"
+                exit 1
+              fi
+              if [[ "$(jq -r .status <<< "$release_run")" == completed ]]; then
+                if [[ "$(jq -r .conclusion <<< "$release_run")" != success ]]; then
+                  echo "::error::Upstream release build $FRONTEND_RUN_ID failed"
+                  exit 1
+                fi
+                break
+              fi
+              if (( SECONDS >= deadline )); then
+                echo "::error::Timed out waiting for upstream release build $FRONTEND_RUN_ID"
+                exit 1
+              fi
+              echo "Waiting for upstream release build $FRONTEND_RUN_ID"
+              sleep 30
+            done
+          fi
           until gh release view "$TAG" --repo "$TING_READER_REPO" --json assets \
             --jq '.assets[].name' 2>/dev/null | grep -Fxq "$frontend"; do
             if (( SECONDS >= deadline )); then
