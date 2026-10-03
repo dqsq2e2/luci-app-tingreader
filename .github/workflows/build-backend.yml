@@ -110,6 +110,9 @@ jobs:
       - name: Package backend, FFmpeg and runtime
         working-directory: upstream/backend
         run: bash "$GITHUB_WORKSPACE/packaging/.github/scripts/package-backend.sh"
+      - name: Verify native plugin loading with isolated runtime
+        working-directory: upstream/backend
+        run: bash "$GITHUB_WORKSPACE/packaging/.github/scripts/verify-native-runtime.sh"
       - uses: actions/upload-artifact@v4
         with:
           name: backend-${{ matrix.arch }}

@@ -40,7 +40,7 @@ for tool in ffmpeg ffprobe; do
 done
 chmod 755 _pkg/ting-reader _pkg/bin/*
 
-# Collect the complete shared-library set, including the matching glibc loader.
+# Collect startup dependencies, including the matching glibc loader.
 for executable in _pkg/ting-reader _pkg/bin/ffmpeg _pkg/bin/ffprobe; do
   dependencies="$(ldd "$executable")"
   if grep -q 'not found' <<< "$dependencies"; then
@@ -53,6 +53,18 @@ for executable in _pkg/ting-reader _pkg/bin/ffmpeg _pkg/bin/ffprobe; do
   done < <(awk '{ for (i=1; i<=NF; i++) if ($i ~ /^\//) print $i }' <<< "$dependencies" | sort -u)
 done
 test -x "_pkg/runtime/$loader"
+
+# Plugins loaded with dlopen can require the legacy glibc SONAMEs even when
+# the backend itself no longer links them after their merge into libc.
+# Take these compatibility libraries from the same libc installation.
+libc_source="$(readlink -f "$(gcc -print-file-name=libc.so.6)")"
+cmp "$libc_source" _pkg/runtime/libc.so.6
+libc_directory="$(dirname "$libc_source")"
+for library in libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1; do
+  source="$libc_directory/$library"
+  test -f "$source"
+  cp -L "$source" "_pkg/runtime/$library"
+done
 
 # Explicit glibc launch makes current_exe point to the loader on OpenWrt.
 # Relative launchers keep the application's bundled audio-tool lookup valid.
