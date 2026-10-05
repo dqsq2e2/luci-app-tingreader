@@ -2,7 +2,7 @@ name: Daily Maintenance
 
 # Orchestrates all daily tasks in sequence:
 #  1. CI cleanup     – delete stale caches & old workflow runs
-#  2. Backend check  – poll upstream ting-reader for new releases, build if needed
+#  2. Release check – build matching backend and LuCI packages for new upstream releases
 #
 # Mirrors the VIKINGYFY/packages Daily-Maintenance-Queue pattern.
 
@@ -26,7 +26,7 @@ jobs:
     uses: ./.github/workflows/cleanup-ci.yml
 
   backend:
-    name: Check & Build Backend
+    name: Check & Build Backend and LuCI
     needs: cleanup
     if: ${{ always() }}
     uses: ./.github/workflows/build-backend.yml

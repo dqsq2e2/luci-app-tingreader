@@ -70,4 +70,6 @@ make package/luci-app-tingreader/compile V=s
 
 在 `LuCI → Applications` 中选择 `luci-app-tingreader`。
 
-本仓库分别构建 LuCI 软件包和 Ting Reader 后端。主项目发布新版本后，后端工作流原生编译 AMD64/ARM64 并发布程序归档及校验清单；LuCI 软件包独立更新。
+主项目发布新版本后，工作流原生编译 AMD64/ARM64 后端，发布程序归档及校验清单，并自动构建、发布同版本号的 LuCI 主包与中文语言包。后端使用 `backend-v版本号` 发布，LuCI 使用 `luci-v版本号` 发布，IPK/APK 包保留各自的软件包修订号。
+
+如果后端已发布而对应 LuCI 包尚未发布，工作流会补发 LuCI 包。手动运行 LuCI 工作流时填写 `luci-v版本号` 可单独发布该版本，留空则仅构建测试产物。

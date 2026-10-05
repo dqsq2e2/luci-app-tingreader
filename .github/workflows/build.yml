@@ -6,14 +6,27 @@ on:
     paths:
       - 'luci-app-tingreader/**'
       - '.github/workflows/build.yml'
+      - '.github/scripts/luci-version.py'
+  workflow_call:
+    inputs:
+      release_tag:
+        description: 'Matching LuCI release tag, e.g. luci-v2.0.3'
+        type: string
+        default: ''
+      release_notes:
+        description: 'Additional Release notes'
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag, e.g. luci-v2.0.0-r1. Blank builds artifacts only.'
+        description: 'Release tag, e.g. luci-v2.0.3. Blank builds artifacts only.'
+        type: string
         required: false
         default: ''
       release_notes:
         description: 'Additional Release notes'
+        type: string
         required: false
         default: ''
 
@@ -25,8 +38,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      revision: ${{ steps.version.outputs.revision }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Resolve LuCI package version
+        id: version
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python3 .github/scripts/luci-version.py --release-tag "$RELEASE_TAG"
+
   build:
     name: LuCI all (${{ matrix.format }})
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
@@ -37,6 +66,13 @@ jobs:
           - { sdk: 25.12.5, format: apk }
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Set matching package and translation versions
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          REVISION: ${{ needs.prepare.outputs.revision }}
+        run: python3 .github/scripts/luci-version.py --version "$VERSION" --revision "$REVISION"
       - name: Build architecture-independent LuCI and translations
         uses: openwrt/gh-action-sdk@main
         env:
@@ -70,11 +106,14 @@ jobs:
           retention-days: 3
 
   release:
-    needs: build
-    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    needs: [prepare, build]
+    if: inputs.release_tag != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
       - uses: actions/download-artifact@v4
         with:
           pattern: LuCI-all-*
@@ -85,29 +124,34 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
           EXTRA_NOTES: ${{ inputs.release_notes }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          REVISION: ${{ needs.prepare.outputs.revision }}
         run: |
-          [[ "$RELEASE_TAG" =~ ^luci-v[0-9]+\.[0-9]+\.[0-9]+-r[0-9]+$ ]]
-          version="${RELEASE_TAG#luci-v}"
+          set -euo pipefail
+          version="$VERSION-r$REVISION"
           ipk_archive="luci-app-tingreader-$version-ipk.zip"
           apk_archive="luci-app-tingreader-$version-apk.zip"
           test -f "release/$ipk_archive"
           test -f "release/$apk_archive"
           test "$(find release -maxdepth 1 -type f | wc -l)" -eq 2
           notes_file="$RUNNER_TEMP/luci-notes.md"
-          cat > "$notes_file" <<'EOF'
+          cat > "$notes_file" <<EOF
+          Ting Reader LuCI ${VERSION}，与同版本后端配套发布。
+
           下载 IPK 或 APK 压缩包，解压后安装 luci-app-tingreader 和可选中文语言包。
           两个压缩包均包含架构无关的 LuCI 主包与中文语言包：opkg 系统选择 IPK，apk 系统选择 APK。
           安装后进入「服务 → Ting Reader → 程序管理」下载前后端，再在「配置」中启用服务并保存应用。
           下载支持 GitHub 直连、自动加速和自定义 HTTPS 加速地址。
           后端支持 x86_64 与 ARM64，程序可安装到外置磁盘。
+          页面提供项目地址、官网文档和 QQ 群入口，以及主项目与 LuCI 的版本徽标。
           EOF
           printf '\n%s\n' "$EXTRA_NOTES" >> "$notes_file"
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "release/$ipk_archive" "release/$apk_archive" --clobber
-            gh release edit "$RELEASE_TAG" --title "LuCI $RELEASE_TAG" --notes-file "$notes_file" --latest
+            gh release edit "$RELEASE_TAG" --title "LuCI $version" --notes-file "$notes_file" --latest
           else
             gh release create "$RELEASE_TAG" release/* --target "$GITHUB_SHA" \
-              --title "LuCI $RELEASE_TAG" --notes-file "$notes_file" --latest
+              --title "LuCI $version" --notes-file "$notes_file" --latest
           fi
           gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' |
             while IFS= read -r asset; do
@@ -116,3 +160,18 @@ jobs:
                 *) gh release delete-asset "$RELEASE_TAG" "$asset" --yes ;;
               esac
             done
+      - name: Record successfully published LuCI version
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          REVISION: ${{ needs.prepare.outputs.revision }}
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/luci-version.py --version "$VERSION" --revision "$REVISION"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add luci-app-tingreader/Makefile luci-app-tingreader/po
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: record LuCI v$VERSION-r$REVISION [skip ci]"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

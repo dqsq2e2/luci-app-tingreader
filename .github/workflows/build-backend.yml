@@ -1,4 +1,4 @@
-name: Build ting-reader Backend
+name: Build Ting Reader Backend and LuCI
 
 on:
   repository_dispatch:
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       ting_reader_tag:
-        description: 'Upstream tag, e.g. v2.0.0. Blank detects the latest release.'
+        description: 'Upstream tag, e.g. v2.0.3. Blank detects the latest release.'
         required: false
         default: ''
       source_ref:
@@ -21,7 +21,7 @@ on:
         type: string
         default: ''
       force:
-        description: 'Rebuild an already published version'
+        description: 'Rebuild the backend and matching LuCI for an already published version'
         type: boolean
         default: false
 
@@ -46,6 +46,7 @@ jobs:
       tag: ${{ steps.detect.outputs.tag }}
       source_sha: ${{ steps.detect.outputs.source_sha }}
       need_build: ${{ steps.detect.outputs.need_build }}
+      need_luci: ${{ steps.detect.outputs.need_luci }}
     steps:
       - uses: actions/checkout@v4
       - name: Detect upstream version
@@ -72,6 +73,14 @@ jobs:
             echo "need_build=true" >> "$GITHUB_OUTPUT"
           else
             echo "need_build=false" >> "$GITHUB_OUTPUT"
+          fi
+          luci_assets="$(gh release view "luci-v$VERSION" --json assets --jq '.assets[].name' 2>/dev/null || true)"
+          if [[ "$FORCE" == true ]] ||
+             ! grep -Fxq "luci-app-tingreader-$VERSION-r1-ipk.zip" <<< "$luci_assets" ||
+             ! grep -Fxq "luci-app-tingreader-$VERSION-r1-apk.zip" <<< "$luci_assets"; then
+            echo "need_luci=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "need_luci=false" >> "$GITHUB_OUTPUT"
           fi
 
   build:
@@ -255,3 +264,14 @@ jobs:
             git pull --rebase origin main
             git push origin HEAD:main
           fi
+
+  luci:
+    name: Publish matching LuCI package
+    needs: [check, publish]
+    if: >-
+      ${{ !cancelled() && needs.check.result == 'success' &&
+          needs.check.outputs.need_luci == 'true' &&
+          (needs.publish.result == 'success' || needs.check.outputs.need_build == 'false') }}
+    uses: ./.github/workflows/build.yml
+    with:
+      release_tag: ${{ format('luci-v{0}', needs.check.outputs.version) }}

@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: luci-app-tingreader 2.0.0\n"
+"Project-Id-Version: luci-app-tingreader 2.0.3\n"
 "PO-Revision-Date: 2026-10-01 00:00+0000\n"
 "Last-Translator: Ting Reader\n"
 "Language-Team: Ting Reader\n"
@@ -95,9 +95,6 @@ msgstr ""
 msgid "Error"
 msgstr ""
 
-msgid "GitHub"
-msgstr ""
-
 msgid "GitHub direct"
 msgstr ""
 
@@ -146,9 +143,6 @@ msgstr ""
 msgid "Log reader exited with code %s."
 msgstr ""
 
-msgid "LuCI App"
-msgstr ""
-
 msgid "MEM %s"
 msgstr ""
 
@@ -168,6 +162,9 @@ msgid "Not installed"
 msgstr ""
 
 msgid "Not running"
+msgstr ""
+
+msgid "Official Documentation"
 msgstr ""
 
 msgid "Open Ting Reader"
@@ -192,6 +189,12 @@ msgid "Program installed. Enable the service in Configuration and apply."
 msgstr ""
 
 msgid "Program management"
+msgstr ""
+
+msgid "Project URL:"
+msgstr ""
+
+msgid "QQ Group"
 msgstr ""
 
 msgid "Configuration"

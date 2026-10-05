@@ -53,6 +53,15 @@ function notifyError(message) {
 	ui.addNotification(null, E('p', message), 'error');
 }
 
+function externalLink(url, content) {
+	return E('a', {
+		'href': url,
+		'target': '_blank',
+		'rel': 'noreferrer noopener',
+		'style': 'display:inline-block;vertical-align:middle;'
+	}, [ content ]);
+}
+
 function withPercent(value) {
 	value = String(value == null || value === '' ? '0' : value);
 	return /%$/.test(value) ? value : value + '%';
@@ -432,23 +441,42 @@ return view.extend({
 		var m, s, o;
 
 		var desc = _('Ting Reader is a self-hosted audiobook server and management tool. Default administrator login username: admin, password: admin123.');
+		var badges = [
+			{
+				label: 'tag',
+				url: 'https://github.com/dqsq2e2/ting-reader/tags',
+				image: 'https://img.shields.io/github/v/tag/dqsq2e2/ting-reader?include_prereleases&filter=v*&sort=semver&logo=github&label=tag&color=007ec6'
+			},
+			{
+				label: 'release',
+				url: 'https://github.com/dqsq2e2/ting-reader/releases',
+				image: 'https://img.shields.io/github/v/release/dqsq2e2/ting-reader?logo=github&label=release&color=007ec6'
+			},
+			{
+				label: 'luci',
+				url: 'https://github.com/dqsq2e2/luci-app-tingreader/releases?q=luci-v',
+				image: 'https://img.shields.io/github/v/release/dqsq2e2/luci-app-tingreader?filter=luci-v*&logo=openwrt&label=luci&color=007ec6'
+			}
+		];
 		var headerNodes = [
-			E('p', { 'style': 'margin-bottom:6px;' }, [
+			E('p', { 'style': 'margin-bottom:6px;line-height:1.8;' }, [
 				desc,
 				' ',
-				E('a', {
-					'href': 'https://github.com/dqsq2e2/ting-reader',
-					'target': '_blank',
-					'rel': 'noreferrer noopener',
-					'style': 'color:#1976d2;font-weight:bold;'
-				}, [ _('GitHub') ]),
-				' | ',
-				E('a', {
-					'href': 'https://github.com/dqsq2e2/luci-app-tingreader',
-					'target': '_blank',
-					'rel': 'noreferrer noopener',
-					'style': 'color:#1976d2;font-weight:bold;'
-				}, [ _('LuCI App') ])
+				_('Project URL:'),
+				' ',
+				externalLink('https://github.com/dqsq2e2/ting-reader', 'github.com/dqsq2e2/ting-reader'),
+				'\u00a0\u00a0',
+				externalLink('https://www.tingreader.cn/guide', _('Official Documentation')),
+				'\u00a0\u00a0',
+				externalLink('https://qm.qq.com/q/gGrl1fzeiQ', _('QQ Group')),
+				'\u00a0\u00a0',
+				E('span', { 'style': 'display:inline-flex;flex-wrap:wrap;gap:6px;vertical-align:middle;max-width:100%;' }, badges.map(function(badge) {
+					return externalLink(badge.url, E('img', {
+						'src': badge.image,
+						'alt': badge.label,
+						'style': 'display:block;height:20px;'
+					}));
+				}))
 			])
 		];
 

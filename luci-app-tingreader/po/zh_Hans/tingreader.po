@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: luci-app-tingreader 2.0.0\n"
+"Project-Id-Version: luci-app-tingreader 2.0.3\n"
 "PO-Revision-Date: 2026-10-01 00:00+0000\n"
 "Last-Translator: Ting Reader\n"
 "Language-Team: Ting Reader\n"
@@ -96,9 +96,6 @@ msgstr "请输入有效的版本号、程序绝对路径和 HTTPS 加速地址�
 msgid "Error"
 msgstr "错误"
 
-msgid "GitHub"
-msgstr "GitHub"
-
 msgid "GitHub direct"
 msgstr "GitHub 直连"
 
@@ -147,9 +144,6 @@ msgstr "日志等级"
 msgid "Log reader exited with code %s."
 msgstr "日志读取程序退出，代码 %s。"
 
-msgid "LuCI App"
-msgstr "LuCI 项目"
-
 msgid "MEM %s"
 msgstr "内存 %s"
 
@@ -170,6 +164,9 @@ msgstr "尚未安装"
 
 msgid "Not running"
 msgstr "未运行"
+
+msgid "Official Documentation"
+msgstr "官网文档"
 
 msgid "Open Ting Reader"
 msgstr "打开 Ting Reader"
@@ -194,6 +191,12 @@ msgstr "程序已安装，请在「配置」中启用服务并保存应用。"
 
 msgid "Program management"
 msgstr "程序管理"
+
+msgid "Project URL:"
+msgstr "项目地址："
+
+msgid "QQ Group"
+msgstr "QQ群"
 
 msgid "Configuration"
 msgstr "配置"
