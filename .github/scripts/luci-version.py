@@ -30,12 +30,14 @@ def main():
     if args.release_tag:
         if not args.release_tag.startswith("luci-v"):
             raise ValueError("LuCI release tags must start with luci-v")
-        version = args.release_tag.removeprefix("luci-v")
-        tag_revision = re.fullmatch(r"(.+)-r([1-9][0-9]*)", version)
+        tag_version = args.release_tag.removeprefix("luci-v")
+        tag_revision = re.fullmatch(r"(.+)-r([1-9][0-9]*)", tag_version)
         if tag_revision:
             version, revision = tag_revision.groups()
         else:
-            revision = "1"
+            if tag_version != version:
+                revision = "1"
+            version = tag_version
     if args.version:
         if args.version != version:
             revision = "1"

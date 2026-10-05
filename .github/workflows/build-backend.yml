@@ -47,6 +47,7 @@ jobs:
       source_sha: ${{ steps.detect.outputs.source_sha }}
       need_build: ${{ steps.detect.outputs.need_build }}
       need_luci: ${{ steps.detect.outputs.need_luci }}
+      luci_tag: ${{ steps.detect.outputs.luci_tag }}
     steps:
       - uses: actions/checkout@v4
       - name: Detect upstream version
@@ -74,10 +75,20 @@ jobs:
           else
             echo "need_build=false" >> "$GITHUB_OUTPUT"
           fi
-          luci_assets="$(gh release view "luci-v$VERSION" --json assets --jq '.assets[].name' 2>/dev/null || true)"
+          luci_revision=1
+          if [[ "$(sed -n 's/^PKG_VERSION:=//p' luci-app-tingreader/Makefile)" == "$VERSION" ]]; then
+            luci_revision="$(sed -n 's/^PKG_RELEASE:=//p' luci-app-tingreader/Makefile)"
+          fi
+          [[ "$luci_revision" =~ ^[1-9][0-9]*$ ]]
+          luci_tag="luci-v$VERSION"
+          if [[ "$luci_revision" != 1 ]]; then
+            luci_tag="$luci_tag-r$luci_revision"
+          fi
+          echo "luci_tag=$luci_tag" >> "$GITHUB_OUTPUT"
+          luci_assets="$(gh release view "$luci_tag" --json assets --jq '.assets[].name' 2>/dev/null || true)"
           if [[ "$FORCE" == true ]] ||
-             ! grep -Fxq "luci-app-tingreader-$VERSION-r1-ipk.zip" <<< "$luci_assets" ||
-             ! grep -Fxq "luci-app-tingreader-$VERSION-r1-apk.zip" <<< "$luci_assets"; then
+             ! grep -Fxq "luci-app-tingreader-$VERSION-r$luci_revision-ipk.zip" <<< "$luci_assets" ||
+             ! grep -Fxq "luci-app-tingreader-$VERSION-r$luci_revision-apk.zip" <<< "$luci_assets"; then
             echo "need_luci=true" >> "$GITHUB_OUTPUT"
           else
             echo "need_luci=false" >> "$GITHUB_OUTPUT"
@@ -274,4 +285,4 @@ jobs:
           (needs.publish.result == 'success' || needs.check.outputs.need_build == 'false') }}
     uses: ./.github/workflows/build.yml
     with:
-      release_tag: ${{ format('luci-v{0}', needs.check.outputs.version) }}
+      release_tag: ${{ needs.check.outputs.luci_tag }}

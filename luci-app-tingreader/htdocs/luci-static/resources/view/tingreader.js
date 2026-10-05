@@ -454,7 +454,7 @@ return view.extend({
 			},
 			{
 				label: 'luci',
-				url: 'https://github.com/dqsq2e2/luci-app-tingreader/releases?q=luci-v',
+				url: 'https://github.com/dqsq2e2/luci-app-tingreader/releases',
 				image: 'https://img.shields.io/github/v/release/dqsq2e2/luci-app-tingreader?filter=luci-v*&logo=openwrt&label=luci&color=007ec6'
 			}
 		];
