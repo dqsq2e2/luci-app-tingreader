@@ -455,7 +455,10 @@ return view.extend({
 			{
 				label: 'luci',
 				url: 'https://github.com/dqsq2e2/luci-app-tingreader/releases',
-				image: 'https://img.shields.io/github/v/release/dqsq2e2/luci-app-tingreader?filter=luci-v*&logo=openwrt&label=luci&color=007ec6'
+				image: 'https://img.shields.io/badge/dynamic/regex?url=' +
+					encodeURIComponent('https://api.github.com/repos/dqsq2e2/luci-app-tingreader/releases/latest') +
+					'&search=' + encodeURIComponent('"tag_name"\\s*:\\s*"luci-(v[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[0-9]+)?)"') +
+					'&replace=%241&logo=openwrt&label=luci&color=007ec6'
 			}
 		];
 		var headerNodes = [
